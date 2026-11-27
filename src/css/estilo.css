@@ -17,6 +17,14 @@
   --cor-fundo-suave: #eeebe3;
   --cor-azul-claro: #e4eaf4;
   --cor-sobre-escuro: #c9d4e8;   /* texto suave sobre azul-marinho */
+  --cor-faixa: #0f2548;          /* fundo do cabeçalho e do rodapé */
+  --cor-linha-campo: #b9c3d6;
+  --cor-selo-aberto-fundo: #e3f0e8;
+  --cor-selo-aberto-hover: #d2e8da;
+  --cor-botao: #1b3a6b;
+  --cor-botao-hover: #152a45;
+  --cor-cta: #9b1b30;            /* botão Buscar */
+  --cor-cta-hover: #7d1526;
   --cor-sucesso: #2b6a4b;
   --cor-alerta: #9a5b00;
   --cor-erro: #a1362b;
@@ -147,11 +155,11 @@ a:hover { color: var(--cor-destaque); }
 .botao {
   display: inline-block; cursor: pointer;
   font-family: var(--fonte-interface); font-size: 1rem; font-weight: 600;
-  background: var(--cor-primaria); color: #fff;
-  border: 1px solid var(--cor-primaria); border-radius: var(--raio);
+  background: var(--cor-botao); color: #fff;
+  border: 1px solid var(--cor-botao); border-radius: var(--raio);
   padding: var(--espaco-2) var(--espaco-3); text-decoration: none;
 }
-.botao:hover { background: var(--cor-primaria-escura); color: #fff; }
+.botao:hover { background: var(--cor-botao-hover); color: #fff; }
 .botao-secundario { background: var(--cor-superficie); color: var(--cor-primaria); }
 .botao-secundario:hover { background: var(--cor-fundo-suave); color: var(--cor-primaria-escura); }
 
@@ -273,8 +281,8 @@ details p { margin-top: var(--espaco-2); }
   font-family: var(--fonte-interface); font-size: 0.78rem; background: var(--cor-fundo-suave);
   color: var(--cor-texto); border-radius: 99px; padding: 0.1rem var(--espaco-2);
 }
-.selo-aberto { background: #e3f0e8; color: var(--cor-sucesso); text-decoration: none; font-weight: 600; }
-a.selo-aberto:hover { background: #d2e8da; color: var(--cor-sucesso); }
+.selo-aberto { background: var(--cor-selo-aberto-fundo); color: var(--cor-sucesso); text-decoration: none; font-weight: 600; }
+a.selo-aberto:hover { background: var(--cor-selo-aberto-hover); color: var(--cor-sucesso); }
 .resultado details.resumo { border-bottom: none; padding: 0; }
 .resultado details.resumo p { font-size: 0.98rem; }
 .acoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); margin-top: var(--espaco-2); }
@@ -294,7 +302,7 @@ a.selo-aberto:hover { background: #d2e8da; color: var(--cor-sucesso); }
    (sobrepõe regras anteriores; as cores continuam nos tokens de :root)
    ========================================================================== */
 .cabecalho {
-  background: var(--cor-primaria-escura);
+  background: var(--cor-faixa);
   border-bottom: 4px solid var(--cor-destaque);
 }
 .cabecalho .recipiente { padding-top: var(--espaco-4); padding-bottom: var(--espaco-4); }
@@ -309,7 +317,7 @@ a.selo-aberto:hover { background: #d2e8da; color: var(--cor-sucesso); }
 .menu a { color: #fff; font-size: 0.95rem; letter-spacing: 0.02em; }
 .menu a:hover, .menu a[aria-current="page"] { color: #fff; border-bottom-color: #e9aab5; }
 
-.rodape { background: var(--cor-primaria-escura); color: var(--cor-sobre-escuro); border-top: 4px solid var(--cor-destaque); }
+.rodape { background: var(--cor-faixa); color: var(--cor-sobre-escuro); border-top: 4px solid var(--cor-destaque); }
 .rodape a { color: #fff; }
 .rodape a:hover { color: #e9aab5; }
 
@@ -325,13 +333,13 @@ a.selo-aberto:hover { background: #d2e8da; color: var(--cor-sucesso); }
 }
 h2 { padding-bottom: var(--espaco-1); }
 
-.botao { background: var(--cor-primaria); border-color: var(--cor-primaria); letter-spacing: 0.02em; }
-.linha-busca .botao { background: var(--cor-destaque); border-color: var(--cor-destaque); padding-left: var(--espaco-4); padding-right: var(--espaco-4); }
-.linha-busca .botao:hover { background: #7d1526; border-color: #7d1526; }
+.botao { background: var(--cor-botao); border-color: var(--cor-botao); letter-spacing: 0.02em; }
+.linha-busca .botao { background: var(--cor-cta); border-color: var(--cor-cta); padding-left: var(--espaco-4); padding-right: var(--espaco-4); }
+.linha-busca .botao:hover { background: var(--cor-cta-hover); border-color: var(--cor-cta-hover); }
 
 .cartao { border-top: 3px solid var(--cor-primaria); }
-.buscador.cartao { border-top-color: var(--cor-destaque); background: #fff; }
-.linha-busca input[type="search"] { border-color: #b9c3d6; font-family: var(--fonte-texto); }
+.buscador.cartao { border-top-color: var(--cor-destaque); background: var(--cor-superficie); }
+.linha-busca input[type="search"] { border-color: var(--cor-linha-campo); font-family: var(--fonte-texto); }
 .linha-busca input[type="search"]:focus { border-color: var(--cor-primaria); }
 .filtros > summary { color: var(--cor-primaria-escura); font-weight: 600; }
 
@@ -342,7 +350,7 @@ h2 { padding-bottom: var(--espaco-1); }
   content: counter(resultado) ". "; color: var(--cor-destaque);
   font-family: var(--fonte-interface); font-size: 0.9rem; font-weight: 700;
 }
-.resultado h3 a { color: var(--cor-primaria-escura); text-decoration-color: #b9c3d6; }
+.resultado h3 a { color: var(--cor-primaria-escura); text-decoration-color: var(--cor-linha-campo); }
 .resultado h3 a:hover { color: var(--cor-destaque); text-decoration-color: var(--cor-destaque); }
 .selo { background: var(--cor-azul-claro); color: var(--cor-primaria-escura); }
 .botao-secundario { border-color: var(--cor-primaria); }
@@ -357,5 +365,49 @@ h2 { padding-bottom: var(--espaco-1); }
 .botao.botao-secundario { background: var(--cor-superficie); color: var(--cor-primaria); border-color: var(--cor-primaria); }
 .botao.botao-secundario:hover { background: var(--cor-azul-claro); color: var(--cor-primaria-escura); }
 .botao.botao-secundario:disabled:hover { background: var(--cor-superficie); }
-.selo.selo-aberto { background: #e3f0e8; color: var(--cor-sucesso); }
-a.selo.selo-aberto:hover { background: #d2e8da; color: var(--cor-sucesso); }
+.selo.selo-aberto { background: var(--cor-selo-aberto-fundo); color: var(--cor-sucesso); }
+a.selo.selo-aberto:hover { background: var(--cor-selo-aberto-hover); color: var(--cor-sucesso); }
+
+
+/* ==========================================================================
+   Botão de tema e modo escuro
+   O atributo data-tema="escuro" em <html> é definido por um pequeno script
+   no <head> (preferência do sistema ou escolha salva) e por js/tema.js.
+   ========================================================================== */
+.cabecalho nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-2) var(--espaco-4); }
+.botao-tema {
+  font-family: var(--fonte-interface); font-size: 0.85rem; cursor: pointer;
+  color: #fff; background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 99px;
+  padding: var(--espaco-1) var(--espaco-3);
+}
+.botao-tema:hover { background: rgba(255, 255, 255, 0.12); }
+.botao-tema[hidden] { display: none; }
+
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  --cor-fundo: #0e131d;
+  --cor-superficie: #161d2b;
+  --cor-texto: #e3e7ee;
+  --cor-texto-suave: #a1acc0;
+  --cor-primaria: #8db1f0;
+  --cor-primaria-escura: #dce7fb;
+  --cor-destaque: #ef7a8d;
+  --cor-borda: #2b3547;
+  --cor-fundo-suave: #1b2335;
+  --cor-azul-claro: #22304d;
+  --cor-sucesso: #6fcf9a;
+  --cor-alerta: #e0a94a;
+  --cor-erro: #f08a7e;
+  --cor-foco: #7aa7f5;
+  --cor-faixa: #0a0f19;
+  --cor-linha-campo: #3a4660;
+  --cor-selo-aberto-fundo: #193627;
+  --cor-selo-aberto-hover: #214733;
+  --cor-botao: #2d5ba6;
+  --cor-botao-hover: #3a6dc0;
+  --cor-cta: #b3243b;
+  --cor-cta-hover: #c9304a;
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+:root[data-tema="escuro"] .pular-conteudo { background: var(--cor-botao); }
