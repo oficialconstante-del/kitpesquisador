@@ -6,22 +6,24 @@
 
 :root {
   /* Cores (paleta neutra e acadêmica) */
-  --cor-fundo: #fbfaf7;          /* papel */
+  --cor-fundo: #f7f5f0;          /* papel */
   --cor-superficie: #ffffff;     /* cartões e campos */
   --cor-texto: #1f2328;
   --cor-texto-suave: #57606a;
-  --cor-primaria: #1f3a5f;       /* azul-tinta */
-  --cor-primaria-escura: #152a45;
-  --cor-destaque: #8c3b2e;       /* terracota discreta */
-  --cor-borda: #d8d4cb;
-  --cor-fundo-suave: #f1eee6;
+  --cor-primaria: #1b3a6b;       /* azul acadêmico */
+  --cor-primaria-escura: #0f2548;/* azul-marinho */
+  --cor-destaque: #9b1b30;       /* vermelho-vinho */
+  --cor-borda: #d5d0c4;
+  --cor-fundo-suave: #eeebe3;
+  --cor-azul-claro: #e4eaf4;
+  --cor-sobre-escuro: #c9d4e8;   /* texto suave sobre azul-marinho */
   --cor-sucesso: #2b6a4b;
   --cor-alerta: #9a5b00;
   --cor-erro: #a1362b;
-  --cor-foco: #2f6fdb;
+  --cor-foco: #2a62c4;
 
   /* Formas e espaçamento */
-  --raio: 8px;
+  --raio: 6px;
   --raio-pequeno: 4px;
   --sombra: 0 1px 2px rgba(31, 35, 40, 0.08);
   --espaco-1: 0.25rem;
@@ -53,7 +55,7 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--fonte-interface);
+  font-family: var(--fonte-texto);
   color: var(--cor-primaria-escura);
   line-height: 1.25;
   margin: var(--espaco-4) 0 var(--espaco-2);
@@ -285,3 +287,75 @@ a.selo-aberto:hover { background: #d2e8da; color: var(--cor-sucesso); }
 .outras-bases { margin: var(--espaco-4) 0; }
 .outras-bases h2 { margin-top: 0; }
 .lista-links { list-style: none; padding: 0; display: grid; gap: var(--espaco-2); grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); font-family: var(--fonte-interface); font-size: 0.95rem; }
+
+
+/* ==========================================================================
+   Tema clássico acadêmico: azul-marinho e vermelho-vinho
+   (sobrepõe regras anteriores; as cores continuam nos tokens de :root)
+   ========================================================================== */
+.cabecalho {
+  background: var(--cor-primaria-escura);
+  border-bottom: 4px solid var(--cor-destaque);
+}
+.cabecalho .recipiente { padding-top: var(--espaco-4); padding-bottom: var(--espaco-4); }
+.marca {
+  font-family: var(--fonte-texto); font-size: 1.6rem; letter-spacing: 0.01em;
+  color: #fff;
+}
+.marca small {
+  font-family: var(--fonte-interface); font-size: 0.78rem; letter-spacing: 0.04em;
+  color: var(--cor-sobre-escuro); margin-top: 0.15rem;
+}
+.menu a { color: #fff; font-size: 0.95rem; letter-spacing: 0.02em; }
+.menu a:hover, .menu a[aria-current="page"] { color: #fff; border-bottom-color: #e9aab5; }
+
+.rodape { background: var(--cor-primaria-escura); color: var(--cor-sobre-escuro); border-top: 4px solid var(--cor-destaque); }
+.rodape a { color: #fff; }
+.rodape a:hover { color: #e9aab5; }
+
+.conteudo { padding-top: var(--espaco-4); }
+.conteudo > h1:first-child {
+  position: relative; font-size: 2.2rem; letter-spacing: -0.01em;
+  margin-top: var(--espaco-2); padding-bottom: var(--espaco-3);
+  border-bottom: 1px solid var(--cor-borda);
+}
+.conteudo > h1:first-child::after {
+  content: ""; position: absolute; left: 0; bottom: -2px;
+  width: 4.5rem; height: 3px; background: var(--cor-destaque);
+}
+h2 { padding-bottom: var(--espaco-1); }
+
+.botao { background: var(--cor-primaria); border-color: var(--cor-primaria); letter-spacing: 0.02em; }
+.linha-busca .botao { background: var(--cor-destaque); border-color: var(--cor-destaque); padding-left: var(--espaco-4); padding-right: var(--espaco-4); }
+.linha-busca .botao:hover { background: #7d1526; border-color: #7d1526; }
+
+.cartao { border-top: 3px solid var(--cor-primaria); }
+.buscador.cartao { border-top-color: var(--cor-destaque); background: #fff; }
+.linha-busca input[type="search"] { border-color: #b9c3d6; font-family: var(--fonte-texto); }
+.linha-busca input[type="search"]:focus { border-color: var(--cor-primaria); }
+.filtros > summary { color: var(--cor-primaria-escura); font-weight: 600; }
+
+.lista-resultados { counter-reset: resultado; }
+.resultado { counter-increment: resultado; border-top: 1px solid var(--cor-borda); border-left: 4px solid var(--cor-primaria); }
+.resultado h3 { font-size: 1.2rem; }
+.resultado h3::before {
+  content: counter(resultado) ". "; color: var(--cor-destaque);
+  font-family: var(--fonte-interface); font-size: 0.9rem; font-weight: 700;
+}
+.resultado h3 a { color: var(--cor-primaria-escura); text-decoration-color: #b9c3d6; }
+.resultado h3 a:hover { color: var(--cor-destaque); text-decoration-color: var(--cor-destaque); }
+.selo { background: var(--cor-azul-claro); color: var(--cor-primaria-escura); }
+.botao-secundario { border-color: var(--cor-primaria); }
+.paginacao .botao { min-width: 7rem; }
+
+.outras-bases { border-top-color: var(--cor-primaria); }
+.lista-links a { font-weight: 600; }
+.aviso { border-left-color: var(--cor-destaque); }
+.metrica strong { color: var(--cor-primaria); }
+
+/* Correções de ordem: variantes que devem vencer as regras do tema acima */
+.botao.botao-secundario { background: var(--cor-superficie); color: var(--cor-primaria); border-color: var(--cor-primaria); }
+.botao.botao-secundario:hover { background: var(--cor-azul-claro); color: var(--cor-primaria-escura); }
+.botao.botao-secundario:disabled:hover { background: var(--cor-superficie); }
+.selo.selo-aberto { background: #e3f0e8; color: var(--cor-sucesso); }
+a.selo.selo-aberto:hover { background: #d2e8da; color: var(--cor-sucesso); }
