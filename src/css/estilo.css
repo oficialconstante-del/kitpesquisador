@@ -494,3 +494,29 @@ a.selo.selo-aberto:hover { background: var(--cor-selo-aberto-hover); color: var(
 .buscador fieldset.fontes .marcadores { margin-top: 0; }
 .dica-fonte { font-weight: 400; font-size: 0.85rem; color: var(--cor-texto-suave); }
 .selo-fonte { background: var(--cor-fundo-suave); border-style: dashed; }
+
+/* Fontes de pesquisa (guia) */
+.guia { max-width: 52rem; }
+.guia h2 { scroll-margin-top: var(--espaco-4); margin-top: var(--espaco-5, 2.5rem); }
+.subtitulo-guia { font-size: 1.15rem; color: var(--cor-texto-suave); margin-top: calc(-1 * var(--espaco-2)); }
+.sumario { background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-radius: var(--raio); padding: var(--espaco-3) var(--espaco-4); margin: var(--espaco-4) 0; }
+.sumario .sumario-titulo { font-size: 1rem; margin: 0 0 var(--espaco-2); }
+.sumario ol { list-style: none; padding: 0; margin: 0; columns: 2 16rem; column-gap: var(--espaco-4); }
+.sumario li { margin-bottom: var(--espaco-1); break-inside: avoid; }
+.tabela-rolavel { overflow-x: auto; margin: var(--espaco-3) 0; border: 1px solid var(--cor-borda); border-radius: var(--raio); }
+.tabela-fontes { width: 100%; border-collapse: collapse; font-size: 0.95rem; min-width: 34rem; }
+.tabela-fontes th, .tabela-fontes td { text-align: left; vertical-align: top; padding: var(--espaco-2) var(--espaco-3); border-bottom: 1px solid var(--cor-borda); }
+.tabela-fontes thead th { font-family: var(--fonte-interface); font-size: 0.85rem; color: var(--cor-texto-suave); background: var(--cor-fundo-suave); }
+.tabela-fontes tbody th { font-weight: 600; width: 26%; }
+.tabela-fontes tbody tr:last-child th, .tabela-fontes tbody tr:last-child td { border-bottom: 0; }
+.guia code { font-size: 0.9em; background: var(--cor-fundo-suave); padding: 0.05em 0.3em; border-radius: var(--raio-pequeno); }
+@media (max-width: 40rem) {
+  .tabela-rolavel { overflow: visible; border: 0; }
+  .tabela-fontes { min-width: 0; }
+  .tabela-fontes thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tabela-fontes tr { display: block; border: 1px solid var(--cor-borda); border-radius: var(--raio); margin-bottom: var(--espaco-2); background: var(--cor-superficie); }
+  .tabela-fontes tbody th, .tabela-fontes td { display: block; width: auto; border: 0; padding: var(--espaco-1) var(--espaco-3); }
+  .tabela-fontes tbody th { padding-top: var(--espaco-2); }
+  .tabela-fontes td:last-child { padding-bottom: var(--espaco-2); }
+  .tabela-fontes td::before { content: attr(data-rotulo) ": "; font-family: var(--fonte-interface); font-size: 0.8rem; font-weight: 600; color: var(--cor-texto-suave); }
+}
