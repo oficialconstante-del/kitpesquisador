@@ -1,12 +1,12 @@
 ---
 layout: base.njk
 titulo: ""
-descricao: "Buscador acadêmico gratuito: pesquise artigos, livros e teses no OpenAlex e no Crossref, com filtros por ano, tipo, idioma, área e acesso aberto, e abra a mesma busca no Google Acadêmico, SciELO e outras bases."
+descricao: "Buscador acadêmico gratuito: pesquise artigos, livros e teses no OpenAlex, no Crossref e no Semantic Scholar, com filtros por ano, tipo, idioma, área e acesso aberto, e abra a mesma busca no Google Acadêmico, SciELO e outras bases."
 scripts:
   - buscador.js
 ---
 <h1>Buscador acadêmico</h1>
-<p class="texto">Pesquise artigos, livros, capítulos e teses em milhões de registros do <strong>OpenAlex</strong> e do <strong>Crossref</strong>, filtre por ano, idioma, área e acesso aberto, e copie a referência no formato ABNT. A mesma busca também pode ser aberta com um clique no Google Acadêmico, no SciELO e em outras bases.</p>
+<p class="texto">Pesquise artigos, livros, capítulos e teses em milhões de registros do <strong>OpenAlex</strong>, do <strong>Crossref</strong> e do <strong>Semantic Scholar</strong>, filtre por ano, idioma, área e acesso aberto, e copie a referência no formato ABNT. A mesma busca também pode ser aberta com um clique no Google Acadêmico, no SciELO e em outras bases.</p>
 
 <form id="busca" class="buscador cartao" role="search" autocomplete="off"
       data-openalex="{{ site.buscador.openalexBase }}" data-crossref="{{ site.buscador.crossrefBase }}">
@@ -56,7 +56,7 @@ scripts:
 
 <div class="texto">
   <h2>Como funciona</h2>
-  <p>Os resultados vêm do <strong>OpenAlex</strong>, um catálogo aberto e gratuito de publicações científicas, e do <strong>Crossref</strong>, o registro de DOIs de editoras e revistas. A consulta é feita pelo seu próprio navegador, direto nessas bases, e o Kit Pesquisador não guarda o que você pesquisa. Cada resultado mostra autoria, periódico ou editora, ano, tipo, número de citações, resumo (quando existe) e um link para a versão em acesso aberto, quando há.</p>
+  <p>Os resultados vêm do <strong>OpenAlex</strong>, um catálogo aberto e gratuito de publicações científicas, do <strong>Crossref</strong>, o registro de DOIs de editoras e revistas, e do <strong>Semantic Scholar</strong>, o catálogo do Allen Institute for AI. A consulta é feita pelo seu próprio navegador, direto nessas bases, e o Kit Pesquisador não guarda o que você pesquisa. Cada resultado mostra autoria, periódico ou editora, ano, tipo, número de citações, resumo (quando existe) e um link para a versão em acesso aberto, quando há.</p>
 
   <h2>Por que o Google Acadêmico não aparece nos resultados</h2>
   <p>O Google Acadêmico não oferece uma forma pública e autorizada de consulta por outros sites. Em vez de copiar seus resultados, o buscador monta o link da mesma pesquisa para você abrir lá. Isso vale para o JSTOR, o SciELO e as demais bases listadas acima.</p>
@@ -73,8 +73,8 @@ scripts:
   <ul>
     <li><strong>Metadados incompletos.</strong> Nem todo registro tem resumo, idioma ou área corretos. As classificações do OpenAlex são feitas automaticamente e podem errar.</li>
     <li><strong>Referência ABNT é um rascunho.</strong> Ela é montada a partir dos dados da base. Confira nomes, títulos, páginas e a edição vigente da norma antes de usar em um trabalho.</li>
-    <li><strong>Limite de uso.</strong> O OpenAlex limita as consultas gratuitas por dia. Se o limite acabar, use o Crossref ou uma chave gratuita em "Opções avançadas".</li>
-    <li><strong>Máximo de resultados.</strong> As bases permitem navegar até os primeiros 10.000 resultados de cada busca. Use filtros para refinar.</li>
+    <li><strong>Limite de uso.</strong> O OpenAlex limita as consultas gratuitas por dia. Se o limite acabar, use o Crossref ou uma chave gratuita em "Opções avançadas". O Semantic Scholar tem um limite gratuito dividido entre todos os usuários da internet; nos horários de pico ele pode recusar consultas por alguns segundos.</li>
+    <li><strong>Máximo de resultados.</strong> O OpenAlex e o Crossref permitem navegar até os primeiros 10.000 resultados de cada busca; o Semantic Scholar, até 1.000. Use filtros para refinar.</li>
   </ul>
 
   <h2>Perguntas frequentes</h2>
@@ -87,12 +87,16 @@ scripts:
     <p>É um catálogo aberto de publicações, autores, instituições e periódicos mantido pela organização sem fins lucrativos OurResearch. Reúne milhões de registros de várias fontes, incluindo o Crossref.</p>
   </details>
   <details>
+    <summary>O que é o Semantic Scholar?</summary>
+    <p>É um catálogo de publicações científicas mantido pelo Allen Institute for AI, instituto de pesquisa sem fins lucrativos. Os resultados são ordenados por relevância, e cada um traz um link para a página da obra no Semantic Scholar.</p>
+  </details>
+  <details>
     <summary>Por que o número de citações difere do Google Acadêmico?</summary>
     <p>Cada base conta citações a partir de fontes diferentes. É normal que os números não coincidam.</p>
   </details>
   <details>
     <summary>Meu termo de busca é enviado a alguém?</summary>
-    <p>O termo vai do seu navegador direto para o OpenAlex ou o Crossref, conforme a fonte escolhida, e essas bases veem o seu endereço de IP. O Kit Pesquisador não recebe nem guarda a pesquisa. A chave opcional do OpenAlex fica só no seu navegador.</p>
+    <p>O termo vai do seu navegador direto para o OpenAlex, o Crossref ou o Semantic Scholar, conforme a fonte escolhida, e essas bases veem o seu endereço de IP. O Kit Pesquisador não recebe nem guarda a pesquisa. A chave opcional do OpenAlex fica só no seu navegador.</p>
   </details>
 </div>
 
