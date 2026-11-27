@@ -7,6 +7,16 @@ module.exports = function (eleventyConfig) {
   // Data atual (usada no rodapé e na política de privacidade)
   eleventyConfig.addFilter("ano", () => new Date().getFullYear());
 
+  // Depois do build: gera favicons e a imagem de compartilhamento a partir de fonte/ (scripts/gerar-imagens.js).
+  // Se falhar, o site é publicado do mesmo jeito, só sem essas imagens.
+  eleventyConfig.on("eleventy.after", async ({ dir }) => {
+    try {
+      await require("./scripts/gerar-imagens.js").gerar(dir.output);
+    } catch (e) {
+      console.warn("[imagens] não foi possível gerar:", e.message);
+    }
+  });
+
   return {
     dir: {
       input: "src",
