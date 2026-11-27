@@ -1,0 +1,186 @@
+---
+layout: base.njk
+titulo: "Gerador de fichamentos: citação, resumo e comentário (ABNT)"
+descricao: "Monte fichamentos de citação, de resumo, de comentário ou completos, com chamadas de citação na ABNT NBR 10520:2023, referência em ABNT e download em Word, Markdown, texto ou PDF. Grátis e sem cadastro."
+scripts:
+  - referencias.js
+  - fichamento.js
+---
+<nav class="trilha" aria-label="Você está em"><a href="/">Início</a> › <a href="/ferramentas/">Ferramentas</a> › Gerador de fichamentos</nav>
+
+<h1>Gerador de fichamentos</h1>
+<p class="texto">Escolha o tipo de fichamento, ligue-o a uma obra da sua <a href="/ferramentas/gerador-de-referencias/">lista de referências</a> e registre citações, paráfrases, a estrutura do argumento e a sua análise. As chamadas de citação são geradas no padrão da <strong>ABNT NBR 10520:2023</strong>, com a página. O resultado pode ser copiado ou baixado em Word, Markdown, texto ou PDF.</p>
+<p class="aviso">Os fichamentos ficam salvos só neste navegador, automaticamente. Nada é enviado a servidores. Para não perder o trabalho, ou para levá-lo a outro computador, baixe um backup (.json) de vez em quando.</p>
+
+<div id="fi-estado" class="mensagem" role="status" aria-live="polite" hidden></div>
+
+<section class="cartao ferramenta" aria-labelledby="fi-meus">
+  <div class="fi-cab">
+    <h2 id="fi-meus">Meus fichamentos <span id="fi-contagem" class="fl-meta"></span></h2>
+    <div class="acoes">
+      <button type="button" id="fi-novo" class="botao">Novo fichamento</button>
+      <button type="button" id="fi-backup" class="botao botao-secundario">Baixar backup (.json)</button>
+      <label class="botao botao-secundario rotulo-arquivo">Importar backup<input type="file" id="fi-importar" accept=".json,application/json"></label>
+    </div>
+  </div>
+  <ul id="fi-lista" class="lista-fichas"></ul>
+</section>
+
+<form id="fi-form" class="ferramenta cartao" aria-label="Fichamento" autocomplete="off">
+  <h2>Identificação</h2>
+  <div class="grade-form">
+    <div>
+      <label for="fi-modelo">Tipo de fichamento</label>
+      <select id="fi-modelo" data-campo="modelo">
+        <option value="completo">Completo</option>
+        <option value="citacoes">De citações</option>
+        <option value="resumo">De resumo</option>
+        <option value="comentario">De comentário (crítico)</option>
+      </select>
+    </div>
+    <div class="f-largo"><p id="fi-modelo-desc" class="fi-dica"></p></div>
+    <div class="f-largo">
+      <label for="fi-tema">Tema ou assunto (cabeçalho da ficha)</label>
+      <input id="fi-tema" type="text" data-campo="tema" placeholder="Ex.: Historiografia — escola dos Annales">
+    </div>
+    <div class="f-largo">
+      <label for="fi-palavras">Palavras-chave (separe por ponto e vírgula)</label>
+      <input id="fi-palavras" type="text" data-campo="palavras" placeholder="Ex.: história das mentalidades; longa duração; Braudel">
+    </div>
+
+    <div class="f-largo">
+      <label for="fi-ref-sel">Obra fichada</label>
+      <select id="fi-ref-sel"></select>
+      <p class="fi-dica">A lista vem do <a href="/ferramentas/gerador-de-referencias/">gerador de referências</a> (e dos resultados que você adicionou no <a href="/">buscador</a>). A referência é copiada para o fichamento, que continua completo mesmo se você apagar a obra da lista.</p>
+      <p id="fi-ref-previa" class="fi-ref-previa" hidden></p>
+    </div>
+    <div id="fi-ref-manual" class="f-largo grade-form" hidden>
+      <div class="f-largo">
+        <label for="fi-ref-texto">Referência completa</label>
+        <textarea id="fi-ref-texto" class="curta" data-campo="refManual" rows="2" placeholder="SOBRENOME, Nome. Título: subtítulo. Local: Editora, ano."></textarea>
+      </div>
+      <div>
+        <label for="fi-autor-cit">Sobrenome(s) para a citação</label>
+        <input id="fi-autor-cit" type="text" data-campo="autorCitacao" placeholder="Ex.: Bloch ou Silva; Souza">
+      </div>
+      <div>
+        <label for="fi-ano-cit">Ano</label>
+        <input id="fi-ano-cit" type="text" data-campo="anoCitacao" inputmode="numeric" placeholder="Ex.: 1949">
+      </div>
+    </div>
+
+    <div>
+      <label for="fi-data">Data da leitura</label>
+      <input id="fi-data" type="date" data-campo="dataLeitura">
+    </div>
+    <div>
+      <label for="fi-paginas">Páginas lidas</label>
+      <input id="fi-paginas" type="text" data-campo="paginasLidas" placeholder="Ex.: 1-87">
+    </div>
+    <div>
+      <label for="fi-local">Onde está a obra</label>
+      <input id="fi-local" type="text" data-campo="localizacao" placeholder="Biblioteca, acervo, link, PDF">
+    </div>
+    <div>
+      <label for="fi-leitor">Fichado por</label>
+      <input id="fi-leitor" type="text" data-campo="leitor" placeholder="Seu nome">
+    </div>
+  </div>
+
+  <fieldset class="fi-secao" data-secao="sintese">
+    <legend>Síntese da obra</legend>
+    <p class="fi-dica">Com as suas palavras. Preencha só o que fizer sentido para a obra; campos vazios não aparecem no fichamento.</p>
+    <label for="fi-resumo">Resumo</label>
+    <textarea id="fi-resumo" class="curta" data-campo="resumo" rows="5" placeholder="Resumo em texto corrido. Deixe uma linha em branco entre parágrafos."></textarea>
+    <div class="grade-form">
+      <div><label for="fi-objetivo">Objetivo da obra</label><textarea id="fi-objetivo" class="curta" data-campo="objetivo" rows="3"></textarea></div>
+      <div><label for="fi-problema">Problema ou pergunta central</label><textarea id="fi-problema" class="curta" data-campo="problema" rows="3"></textarea></div>
+      <div><label for="fi-tese">Tese central</label><textarea id="fi-tese" class="curta" data-campo="tese" rows="3"></textarea></div>
+      <div><label for="fi-metodo">Método, fontes e corpus</label><textarea id="fi-metodo" class="curta" data-campo="metodo" rows="3" placeholder="Ex.: documentos de arquivo, entrevistas, análise conceitual"></textarea></div>
+      <div class="f-largo"><label for="fi-ideias">Ideias principais</label><textarea id="fi-ideias" class="curta" data-campo="ideias" rows="4"></textarea></div>
+      <div class="f-largo"><label for="fi-conclusoes">Conclusões do autor</label><textarea id="fi-conclusoes" class="curta" data-campo="conclusoes" rows="3"></textarea></div>
+    </div>
+  </fieldset>
+
+  <fieldset class="fi-secao" data-secao="argumento">
+    <legend>Estrutura do argumento</legend>
+    <p class="fi-dica">Reconstrua o argumento principal da obra em forma padrão: premissas numeradas e conclusão.</p>
+    <div class="grade-form">
+      <div class="f-largo">
+        <label for="fi-premissas">Premissas (uma por linha)</label>
+        <textarea id="fi-premissas" class="curta" data-campo="premissas" rows="4" placeholder="Toda fonte histórica é produzida a partir de um ponto de vista.&#10;Nenhum ponto de vista esgota o passado."></textarea>
+      </div>
+      <div class="f-largo">
+        <label for="fi-conclusao">Conclusão</label>
+        <textarea id="fi-conclusao" class="curta" data-campo="conclusaoArg" rows="2"></textarea>
+      </div>
+      <div>
+        <label for="fi-tipo-arg">Tipo de argumento</label>
+        <select id="fi-tipo-arg" data-campo="tipoArg">
+          <option value="">Não informar</option>
+          <option value="dedutivo">Dedutivo</option>
+          <option value="indutivo">Indutivo</option>
+          <option value="abdutivo">Abdutivo (inferência à melhor explicação)</option>
+          <option value="analogico">Por analogia</option>
+          <option value="autoridade">Por autoridade ou testemunho</option>
+          <option value="misto">Misto</option>
+        </select>
+      </div>
+      <div class="f-largo">
+        <label for="fi-obs-arg">Validade e solidez</label>
+        <textarea id="fi-obs-arg" class="curta" data-campo="obsArg" rows="3" placeholder="A conclusão se segue das premissas? As premissas são verdadeiras ou bem apoiadas? Há premissas ocultas?"></textarea>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset class="fi-secao" data-secao="citacoes">
+    <legend>Citações, paráfrases e comentários</legend>
+    <p class="fi-dica">Citação direta: transcrição literal, com página obrigatória. Paráfrase: a ideia do autor com as suas palavras. Comentário: uma observação sua. Acima de três linhas (cerca de 260 caracteres), a citação direta é formatada como citação longa.</p>
+    <div id="fi-entradas" class="entradas"></div>
+    <p id="fi-sem-entradas" class="fi-dica">Nenhum trecho ainda.</p>
+    <div class="acoes">
+      <button type="button" class="botao botao-secundario" data-nova-entrada="direta">+ Citação direta</button>
+      <button type="button" class="botao botao-secundario" data-nova-entrada="parafrase">+ Paráfrase</button>
+      <button type="button" class="botao botao-secundario" data-nova-entrada="comentario">+ Comentário</button>
+    </div>
+  </fieldset>
+
+  <fieldset class="fi-secao" data-secao="conceitos">
+    <legend>Conceitos-chave</legend>
+    <label for="fi-conceitos">Um por linha, no formato "termo: definição"</label>
+    <textarea id="fi-conceitos" class="curta" data-campo="conceitos" rows="4" placeholder="Longa duração: tempo das estruturas, quase imóvel (Braudel)."></textarea>
+  </fieldset>
+
+  <fieldset class="fi-secao" data-secao="critica">
+    <legend>Análise crítica</legend>
+    <div class="grade-form">
+      <div class="f-largo"><label for="fi-avaliacao">Avaliação geral</label><textarea id="fi-avaliacao" class="curta" data-campo="avaliacao" rows="3"></textarea></div>
+      <div><label for="fi-contrib">Contribuições</label><textarea id="fi-contrib" class="curta" data-campo="contribuicoes" rows="3"></textarea></div>
+      <div><label for="fi-limites">Limitações e objeções</label><textarea id="fi-limites" class="curta" data-campo="limitacoes" rows="3"></textarea></div>
+      <div class="f-largo"><label for="fi-relacao">Relação com a minha pesquisa</label><textarea id="fi-relacao" class="curta" data-campo="relacao" rows="3"></textarea></div>
+      <div class="f-largo"><label for="fi-leituras">Leituras indicadas a partir da obra (uma por linha)</label><textarea id="fi-leituras" class="curta" data-campo="leituras" rows="3"></textarea></div>
+    </div>
+  </fieldset>
+  <p id="fi-salvo" class="fi-dica" aria-live="polite"></p>
+</form>
+
+<section class="cartao ferramenta" aria-labelledby="fi-previa-t">
+  <h2 id="fi-previa-t">Prévia do fichamento</h2>
+  <div class="acoes">
+    <button type="button" id="fi-copiar" class="botao">Copiar</button>
+    <button type="button" id="fi-word" class="botao botao-secundario">Baixar Word (.doc)</button>
+    <button type="button" id="fi-imprimir" class="botao botao-secundario">Imprimir ou salvar em PDF</button>
+    <button type="button" id="fi-md" class="botao botao-secundario">Markdown (.md)</button>
+    <button type="button" id="fi-txt" class="botao botao-secundario">Texto (.txt)</button>
+  </div>
+  <div id="fi-previa" class="ficha-doc" aria-live="off"></div>
+  <p class="aviso">O arquivo .doc é aberto pelo Word, LibreOffice e Google Docs (fonte Times New Roman 12, espaçamento 1,5, margens ABNT e recuo de 4 cm nas citações longas). No PDF, escolha "Salvar como PDF" na janela de impressão.</p>
+</section>
+
+<h2>Como fazer um bom fichamento</h2>
+<div class="texto">
+  <p><strong>Fichamento de citações</strong>: transcreva os trechos exatamente como estão, entre aspas, com a página. Use colchetes para intervenções suas, como [...] para supressões e [grifo nosso] para destaques.</p>
+  <p><strong>Fichamento de resumo</strong>: reescreva as ideias do autor com as suas palavras, seguindo a ordem da obra, sem opinar. Sempre que reproduzir uma ideia específica, registre a página na paráfrase.</p>
+  <p><strong>Fichamento de comentário</strong>: além de resumir, avalie. Separe o que o autor afirma do que você pensa, reconstrua o argumento (premissas e conclusão) e verifique se a conclusão realmente se segue delas.</p>
+  <p>Na chamada de citação, a NBR 10520:2023 usa o sobrenome só com a inicial maiúscula: (Bloch, 2001, p. 55). Com até três autores, os sobrenomes são separados por ponto e vírgula; com quatro ou mais, usa-se o primeiro seguido de "et al.".</p>
+</div>
