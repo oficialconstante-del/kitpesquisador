@@ -18,8 +18,11 @@ scripts:
 
   <details class="filtros" open>
     <summary>Filtros</summary>
+    <fieldset class="fontes">
+      <legend>Fontes dos resultados <span class="dica-fonte">(marque uma ou mais)</span></legend>
+      <div id="fontes" class="marcadores"></div>
+    </fieldset>
     <div class="grade-filtros">
-      <div><label for="fonte">Fonte dos resultados</label><select id="fonte"></select></div>
       <div><label for="campo">Buscar em</label><select id="campo"></select></div>
       <div><label for="de">Ano (de)</label><input id="de" type="number" inputmode="numeric" min="1000" max="2100" placeholder="Ex.: 2010"></div>
       <div><label for="ate">Ano (até)</label><input id="ate" type="number" inputmode="numeric" min="1000" max="2100" placeholder="Ex.: 2025"></div>
