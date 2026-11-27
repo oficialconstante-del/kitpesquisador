@@ -445,3 +445,45 @@ a.selo.selo-aberto:hover { background: var(--cor-selo-aberto-hover); color: var(
 .lista-refs .ref-botoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); margin-top: var(--espaco-2); }
 .lista-refs .ref-botoes .botao { padding: var(--espaco-1) var(--espaco-3); font-size: 0.85rem; }
 .botao:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ==========================================================================
+   Gerador de fichamentos
+   ========================================================================== */
+.fi-cab { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--espaco-2); }
+.fi-cab h2 { margin: 0; }
+.fi-dica { font-family: var(--fonte-interface); font-size: 0.9rem; color: var(--cor-texto-suave); margin: var(--espaco-1) 0 var(--espaco-2); }
+.rotulo-arquivo { position: relative; overflow: hidden; display: inline-flex; align-items: center; margin: 0 !important; cursor: pointer; }
+.rotulo-arquivo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.rotulo-arquivo:focus-within { outline: 3px solid var(--cor-primaria); outline-offset: 2px; }
+.lista-fichas { list-style: none; padding: 0; margin: var(--espaco-3) 0 0; display: grid; gap: var(--espaco-2); }
+.lista-fichas li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--espaco-1) var(--espaco-3); padding: var(--espaco-2) var(--espaco-3); border: 1px solid var(--cor-borda); border-radius: var(--raio-pequeno); background: var(--cor-superficie); }
+.lista-fichas li.atual { border-left: 4px solid var(--cor-primaria); }
+.fl-titulo { font-weight: 600; flex: 1 1 14rem; overflow-wrap: anywhere; }
+.fl-meta { font-family: var(--fonte-interface); font-size: 0.85rem; font-weight: 400; color: var(--cor-texto-suave); }
+.fl-botoes { display: flex; gap: var(--espaco-1); flex-wrap: wrap; }
+.fi-secao { border: 0; border-top: 1px solid var(--cor-borda); margin: var(--espaco-4) 0 0; padding: var(--espaco-3) 0 0; min-width: 0; }
+.fi-secao legend { font-family: var(--fonte-interface); font-size: 1.25rem; font-weight: 700; padding: 0 var(--espaco-2) 0 0; }
+.fi-ref-previa { padding: var(--espaco-2) var(--espaco-3); border-left: 4px solid var(--cor-primaria); background: var(--cor-fundo-suave); border-radius: var(--raio-pequeno); overflow-wrap: anywhere; }
+#fi-ref-manual { margin-top: 0; }
+.entradas { display: grid; gap: var(--espaco-3); }
+.entrada { border: 1px solid var(--cor-borda); border-radius: var(--raio); padding: var(--espaco-3); background: var(--cor-superficie); }
+.entrada-topo { display: flex; flex-wrap: wrap; gap: var(--espaco-2); align-items: center; margin-bottom: var(--espaco-2); }
+.entrada-topo select { width: auto; flex: 0 1 16rem; }
+.entrada-topo input { width: auto; flex: 0 1 13rem; }
+.entrada-num { font-family: var(--fonte-interface); font-weight: 700; min-width: 1.6rem; height: 1.6rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--cor-primaria); color: #fff; font-size: 0.85rem; }
+.entrada-botoes { display: flex; gap: var(--espaco-1); margin-left: auto; }
+.e-info { font-family: var(--fonte-interface); font-size: 0.85rem; color: var(--cor-texto-suave); margin: var(--espaco-1) 0 0; }
+.ficha-doc { font-family: var(--fonte-texto); line-height: 1.6; background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-radius: var(--raio); padding: var(--espaco-4); margin-top: var(--espaco-3); overflow-wrap: anywhere; }
+.ficha-doc:empty::before { content: "A prévia aparece aqui enquanto você preenche."; color: var(--cor-texto-suave); }
+.ficha-doc h1 { font-size: 1.15rem; text-transform: uppercase; text-align: center; margin: 0 0 var(--espaco-3); }
+.ficha-doc h2 { font-size: 1.05rem; text-transform: uppercase; margin: var(--espaco-4) 0 var(--espaco-2); }
+.ficha-doc h3 { font-size: 1rem; margin: var(--espaco-3) 0 var(--espaco-1); }
+.ficha-doc p { margin: 0 0 var(--espaco-2); text-align: justify; }
+.ficha-doc .ficha-tema { text-align: right; font-weight: 700; text-transform: uppercase; font-family: var(--fonte-interface); font-size: 0.9rem; }
+.ficha-doc .ficha-campo { text-align: left; }
+.ficha-doc .citacao-longa { margin: var(--espaco-2) 0 var(--espaco-2) min(4cm, 25%); padding: 0; border: 0; }
+.ficha-doc .citacao-longa p { font-size: 0.9rem; line-height: 1.3; }
+.ficha-doc .ficha-nota { margin-left: var(--espaco-4); color: var(--cor-texto-suave); }
+.ficha-doc .premissas { list-style: none; padding-left: 0; }
+.ficha-doc dt { font-weight: 700; }
+.ficha-doc dd { margin: 0 0 var(--espaco-2) var(--espaco-4); }
