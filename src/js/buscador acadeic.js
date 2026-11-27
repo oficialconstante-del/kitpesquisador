@@ -1,27 +1,31 @@
 /* Buscador acadêmico do Kit Pesquisador.
-   Consulta o OpenAlex e o Crossref direto do navegador do visitante (sem servidor próprio).
+   Consulta o OpenAlex, o Crossref e o Semantic Scholar direto do navegador do visitante (sem servidor próprio).
    A lógica (montar URLs, normalizar respostas, formatar referências) é separada da interface
    para poder ser testada em Node (npm test). */
 
 const POR_PAGINA = 25;
-const MAX_REGISTROS = 10000; // limite de paginação das duas APIs
+const MAX_REGISTROS = 10000; // limite de paginação do OpenAlex e do Crossref
+const MAX_REGISTROS_S2 = 1000; // a busca por relevância do Semantic Scholar vai até offset + limit = 1000
 const SELECT_OPENALEX =
   "id,doi,title,display_name,publication_year,type,language,cited_by_count,open_access,primary_location,authorships,biblio,abstract_inverted_index";
 const SELECT_CROSSREF =
   "DOI,title,author,container-title,issued,type,volume,issue,page,URL,is-referenced-by-count,abstract";
+const CAMPOS_S2 =
+  "title,authors,year,venue,journal,externalIds,url,openAccessPdf,isOpenAccess,citationCount,abstract,publicationTypes";
 
 const FONTES = [
   { valor: "openalex", rotulo: "OpenAlex (mais filtros)" },
   { valor: "crossref", rotulo: "Crossref (sem chave, menos filtros)" },
+  { valor: "semantic", rotulo: "Semantic Scholar (relevância; limite compartilhado)" },
 ];
 
 const TIPOS = [
-  { valor: "", rotulo: "Qualquer tipo", openalex: "", crossref: "" },
-  { valor: "artigo", rotulo: "Artigo", openalex: "article", crossref: "journal-article" },
-  { valor: "livro", rotulo: "Livro", openalex: "book", crossref: "monograph" },
-  { valor: "capitulo", rotulo: "Capítulo de livro", openalex: "book-chapter", crossref: "book-chapter" },
-  { valor: "tese", rotulo: "Tese ou dissertação", openalex: "dissertation", crossref: "dissertation" },
-  { valor: "preprint", rotulo: "Preprint", openalex: "preprint", crossref: "posted-content" },
+  { valor: "", rotulo: "Qualquer tipo", openalex: "", crossref: "", s2: "" },
+  { valor: "artigo", rotulo: "Artigo", openalex: "article", crossref: "journal-article", s2: "JournalArticle" },
+  { valor: "livro", rotulo: "Livro", openalex: "book", crossref: "monograph", s2: "Book" },
+  { valor: "capitulo", rotulo: "Capítulo de livro", openalex: "book-chapter", crossref: "book-chapter", s2: "BookSection" },
+  { valor: "tese", rotulo: "Tese ou dissertação", openalex: "dissertation", crossref: "dissertation", s2: "" },
+  { valor: "preprint", rotulo: "Preprint", openalex: "preprint", crossref: "posted-content", s2: "" },
 ];
 
 const IDIOMAS = [
@@ -56,6 +60,20 @@ const AREAS = [
   { valor: "sub:3309", rotulo: "Biblioteconomia e Ciência da Informação" },
   { valor: "sub:3308", rotulo: "Direito" },
 ];
+
+// Áreas equivalentes no Semantic Scholar (fieldsOfStudy). Sem equivalente, o filtro é ignorado.
+const AREAS_S2 = {
+  "campo:12": "Art,History,Philosophy,Linguistics",
+  "sub:1202": "History",
+  "sub:1211": "Philosophy",
+  "sub:1207": "History,Philosophy",
+  "sub:1203": "Linguistics",
+  "sub:1213": "Art",
+  "campo:33": "Sociology,Political Science,Education,Law,Economics,Geography",
+  "sub:3304": "Education",
+  "sub:3312": "Sociology,Political Science",
+  "sub:3308": "Law",
+};
 
 const ORDENS = [
   { valor: "relevancia", rotulo: "Mais relevantes" },
@@ -131,7 +149,7 @@ function normalizarParametros(entrada) {
   p.campo = dentro(CAMPOS_BUSCA, e.campo) ? e.campo : PADRAO.campo;
   p.ord = dentro(ORDENS, e.ord) ? e.ord : PADRAO.ord;
   const pag = parseInt(e.pag, 10);
-  p.pag = Number.isFinite(pag) && pag >= 1 ? Math.min(pag, Math.floor(MAX_REGISTROS / POR_PAGINA)) : 1;
+  p.pag = Number.isFinite(pag) && pag >= 1 ? Math.min(pag, Math.ceil(maxRegistros(p.fonte) / POR_PAGINA)) : 1;
   return p;
 }
 
@@ -225,6 +243,40 @@ function urlCrossref(p, base, hoje) {
   return `${base.replace(/\/$/, "")}/works?${partes.join("&")}`;
 }
 
+// Filtros que o Semantic Scholar não oferece (ou que não têm equivalente) e são ignorados.
+function filtrosIgnoradosS2(p) {
+  const lista = [];
+  if (p.idioma) lista.push("idioma");
+  if (p.br) lista.push("instituição no Brasil");
+  const tipo = TIPOS.find((t) => t.valor === p.tipo);
+  if (tipo && tipo.valor && !tipo.s2) lista.push("tipo");
+  if (p.area && !AREAS_S2[p.area]) lista.push("área");
+  if (p.ord !== "relevancia") lista.push("ordenação");
+  return lista;
+}
+
+function filtrosIgnorados(p) {
+  if (p.fonte === "crossref") return filtrosIgnoradosCrossref(p);
+  if (p.fonte === "semantic") return filtrosIgnoradosS2(p);
+  return [];
+}
+
+function maxRegistros(fonte) {
+  return fonte === "semantic" ? MAX_REGISTROS_S2 : MAX_REGISTROS;
+}
+
+function urlSemantic(p, base) {
+  const partes = [`query=${enc(p.q)}`];
+  if (p.de || p.ate) partes.push(`year=${p.de || ""}-${p.ate || ""}`);
+  const tipo = TIPOS.find((t) => t.valor === p.tipo);
+  if (tipo && tipo.s2) partes.push(`publicationTypes=${tipo.s2}`);
+  if (AREAS_S2[p.area]) partes.push(`fieldsOfStudy=${enc(AREAS_S2[p.area])}`);
+  if (p.oa) partes.push("openAccessPdf");
+  const offset = (p.pag - 1) * POR_PAGINA;
+  partes.push(`offset=${offset}`, `limit=${Math.min(POR_PAGINA, MAX_REGISTROS_S2 - offset)}`, `fields=${CAMPOS_S2}`);
+  return `${base.replace(/\/$/, "")}/graph/v1/paper/search?${partes.join("&")}`;
+}
+
 /* ---------- normalização das respostas ---------- */
 
 function reconstruirResumo(indice) {
@@ -303,6 +355,51 @@ function normalizarCrossref(it) {
     volume: it.volume || "",
     numero: it.issue || "",
     paginas: it.page || "",
+  };
+}
+
+const TIPOS_S2 = [
+  ["BookSection", "Capítulo"], ["Book", "Livro"], ["Conference", "Trabalho em evento"],
+  ["Review", "Revisão"], ["JournalArticle", "Artigo"],
+];
+
+// Os termos da API pedem um link de volta ao Semantic Scholar com utm_source=api.
+function urlComUtm(u) {
+  const s = urlSegura(u);
+  if (!s) return "";
+  return s + (s.includes("?") ? "&" : "?") + "utm_source=api";
+}
+
+function normalizarSemantic(it) {
+  const j = it.journal || {};
+  const doi = limparDoi(it.externalIds && it.externalIds.DOI);
+  const tipos = Array.isArray(it.publicationTypes) ? it.publicationTypes : [];
+  const achado = TIPOS_S2.find(([k]) => tipos.includes(k));
+  // "volume" às vezes vem com o número junto ("11 2").
+  let volume = String(j.volume || "").trim();
+  let numero = "";
+  const vn = /^(\S+)\s+(\S+)$/.exec(volume);
+  if (vn) { volume = vn[1]; numero = vn[2]; }
+  const paginaS2 = urlComUtm(it.url);
+  const pdf = it.openAccessPdf && urlSegura(it.openAccessPdf.url);
+  return {
+    id: it.paperId || doi,
+    titulo: it.title || "(sem título)",
+    autores: (it.authors || []).map((a) => ({ nome: (a && a.name) || "" })).filter((a) => a.nome),
+    fonte: String(j.name || it.venue || "").trim(),
+    ano: it.year || null,
+    tipo: achado ? achado[1] : "",
+    idioma: "",
+    doi,
+    url: doi ? `https://doi.org/${doi}` : paginaS2,
+    urlS2: paginaS2,
+    urlAberta: pdf || "",
+    aberto: !!(it.isOpenAccess || pdf),
+    citacoes: it.citationCount || 0,
+    resumo: limparJats(it.abstract),
+    volume,
+    numero,
+    paginas: String(j.pages || "").replace(/\s+/g, "").replace(/[–—]/g, "-"),
   };
 }
 
@@ -430,6 +527,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     POR_PAGINA, MAX_REGISTROS, PADRAO, TIPOS, AREAS, IDIOMAS, ORDENS,
     normalizarParametros, lerDaUrl, paraUrl, urlOpenAlex, urlCrossref, filtrosIgnoradosCrossref,
+    urlSemantic, filtrosIgnoradosS2, filtrosIgnorados, maxRegistros, normalizarSemantic, AREAS_S2, MAX_REGISTROS_S2,
     reconstruirResumo, limparJats, normalizarOpenAlex, normalizarCrossref,
     formatarNomeAbnt, ajustarCaixaTitulo, referenciaAbnt, resultadoParaRef, adicionarRef, urlsOutrasBases, urlSegura, limparDoi,
   };
@@ -447,6 +545,7 @@ if (typeof document !== "undefined") {
     const raiz = document.getElementById("buscador-config") || form;
     const baseOpenAlex = raiz.dataset.openalex || "https://api.openalex.org";
     const baseCrossref = raiz.dataset.crossref || "https://api.crossref.org";
+    const baseSemantic = raiz.dataset.semantic || "https://api.semanticscholar.org";
     const CHAVE_LS = "kp_openalex_key";
 
     const campos = {
@@ -500,12 +599,15 @@ if (typeof document !== "undefined") {
     }
 
     function atualizarFonte() {
-      const cr = campos.fonte.value === "crossref";
-      for (const k of ["idioma", "area", "oa", "br", "campo"]) campos[k].disabled = cr;
-      nota.hidden = !cr;
-      nota.textContent = cr
-        ? "No Crossref não há filtro de idioma, área, acesso aberto nem instituição, e a busca é feita em todos os campos do registro. Use o OpenAlex para esses filtros."
-        : "";
+      const f = campos.fonte.value;
+      const bloqueados = f === "crossref" ? ["idioma", "area", "oa", "br", "campo"] : f === "semantic" ? ["idioma", "br", "campo", "ord"] : [];
+      for (const k of ["idioma", "area", "oa", "br", "campo", "ord"]) campos[k].disabled = bloqueados.includes(k);
+      const textos = {
+        crossref: "No Crossref não há filtro de idioma, área, acesso aberto nem instituição, e a busca é feita em todos os campos do registro. Use o OpenAlex para esses filtros.",
+        semantic: "No Semantic Scholar os resultados vêm sempre por relevância, sem filtro de idioma nem de instituição, e a paginação vai até 1.000 resultados. A área usa as categorias dele (nem todas têm equivalente). O limite gratuito é dividido entre todos os usuários da internet: se a busca falhar, espere alguns segundos e tente de novo.",
+      };
+      nota.hidden = !textos[f];
+      nota.textContent = textos[f] || "";
     }
 
     function atualizarOutrasBases() {
@@ -623,6 +725,11 @@ if (typeof document !== "undefined") {
       acoes.appendChild(botaoCopiar("Copiar referência (ABNT, rascunho)", () => referenciaAbnt(r)));
       if (r.doi) acoes.appendChild(botaoCopiar("Copiar DOI", () => r.doi));
       acoes.appendChild(botaoLista(r));
+      if (r.urlS2) {
+        const a = el("a", "botao botao-secundario botao-pequeno", "Ver no Semantic Scholar");
+        a.href = r.urlS2; a.target = "_blank"; a.rel = "noopener noreferrer";
+        acoes.appendChild(a);
+      }
       li.appendChild(acoes);
       return li;
     }
@@ -635,7 +742,7 @@ if (typeof document !== "undefined") {
 
     function desenharPaginacao(p, total) {
       paginacao.textContent = "";
-      const maxPag = Math.min(Math.ceil(total / POR_PAGINA), Math.floor(MAX_REGISTROS / POR_PAGINA));
+      const maxPag = Math.min(Math.ceil(total / POR_PAGINA), Math.ceil(maxRegistros(p.fonte) / POR_PAGINA));
       if (maxPag <= 1) return;
       const ir = (pag) => { const novo = { ...p, pag }; history.pushState(null, "", paraUrl(novo)); executar(novo); window.scrollTo({ top: form.offsetTop, behavior: "smooth" }); };
       const ant = el("button", "botao botao-secundario", "‹ Anterior");
@@ -646,6 +753,32 @@ if (typeof document !== "undefined") {
     }
 
     let controle = null;
+
+    const esperar = (ms, ctl) => new Promise((ok, falha) => {
+      const t = setTimeout(ok, ms);
+      ctl.signal.addEventListener("abort", () => { clearTimeout(t); falha(new DOMException("abortado", "AbortError")); }, { once: true });
+    });
+
+    // A resposta 429 do Semantic Scholar não traz cabeçalho CORS, então o navegador a vê como
+    // falha de rede. Por isso tanto o 429 quanto o TypeError contam como "tente de novo".
+    async function buscarSemantic(url, ctl) {
+      const pausas = [1500, 3500];
+      for (let tentativa = 0; ; tentativa++) {
+        let erro;
+        try {
+          const r = await fetch(url, { signal: ctl.signal });
+          if (r.ok) return await r.json();
+          erro = new Error("http"); erro.status = r.status;
+          if (r.status !== 429 && r.status < 500) throw erro;
+        } catch (e) {
+          if (e.name === "AbortError" || (e.status && e.status !== 429 && e.status < 500)) throw e;
+          erro = e;
+        }
+        if (tentativa >= pausas.length) throw erro;
+        mostrarMensagem(`O Semantic Scholar está ocupado. Tentando de novo (${tentativa + 2} de ${pausas.length + 1})…`, "");
+        await esperar(pausas[tentativa], ctl);
+      }
+    }
 
     async function executar(p) {
       if (controle) controle.abort();
@@ -659,8 +792,13 @@ if (typeof document !== "undefined") {
       let chave = "";
       try { chave = localStorage.getItem(CHAVE_LS) || ""; } catch (e) { /* ok */ }
       try {
-        let total, resultados;
-        if (p.fonte === "crossref") {
+        let total, resultados, totalReal;
+        if (p.fonte === "semantic") {
+          const d = await buscarSemantic(urlSemantic(p, baseSemantic), meu);
+          total = Math.min(d.total || 0, MAX_REGISTROS_S2);
+          totalReal = d.total || 0;
+          resultados = (d.data || []).map(normalizarSemantic);
+        } else if (p.fonte === "crossref") {
           const r = await fetch(urlCrossref(p, baseCrossref, hoje), { signal: meu.signal });
           if (!r.ok) { const e = new Error("http"); e.status = r.status; throw e; }
           const d = await r.json();
@@ -677,17 +815,23 @@ if (typeof document !== "undefined") {
           mostrarMensagem("Nenhum resultado. Tente menos filtros, outros termos ou outra fonte.", "alerta");
           return;
         }
-        const nomeFonte = p.fonte === "crossref" ? "Crossref" : "OpenAlex";
+        const nomeFonte = { crossref: "Crossref", semantic: "Semantic Scholar" }[p.fonte] || "OpenAlex";
         const ini = (p.pag - 1) * POR_PAGINA + 1;
-        const ignorados = p.fonte === "crossref" ? filtrosIgnoradosCrossref(p) : [];
-        let msg = `${nf.format(total)} resultados no ${nomeFonte}. Mostrando ${nf.format(ini)}–${nf.format(ini + resultados.length - 1)}.`;
+        const ignorados = filtrosIgnorados(p);
+        let msg = `${nf.format(totalReal || total)} resultados no ${nomeFonte}. Mostrando ${nf.format(ini)}–${nf.format(ini + resultados.length - 1)}.`;
+        if (totalReal > total) msg += ` O Semantic Scholar só pagina os ${nf.format(MAX_REGISTROS_S2)} primeiros; refine a busca para ver outros.`;
         if (ignorados.length) msg += ` Filtros ignorados nesta fonte: ${ignorados.join(", ")}.`;
         mostrarMensagem(msg, "");
         for (const r of resultados) lista.appendChild(cartao(r));
         desenharPaginacao(p, total);
       } catch (e) {
         if (e.name === "AbortError") return;
-        if (e.status === 429 || e.status === 403) {
+        if (p.fonte === "semantic" && (e.status === 429 || !e.status)) {
+          mostrarMensagem(
+            "O Semantic Scholar recusou a consulta agora: o limite gratuito é dividido entre todos os usuários da internet e estava esgotado (ou a conexão falhou). Espere alguns segundos e busque de novo, ou use o OpenAlex.",
+            "erro"
+          );
+        } else if (e.status === 429 || e.status === 403) {
           mostrarMensagem(
             "O limite gratuito diário do OpenAlex para a sua rede foi atingido. Você pode tentar o Crossref, voltar amanhã ou colocar uma chave gratuita do OpenAlex em \"Opções avançadas\".",
             "erro"
