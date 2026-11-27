@@ -411,3 +411,37 @@ a.selo.selo-aberto:hover { background: var(--cor-selo-aberto-hover); color: var(
   --sombra: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 :root[data-tema="escuro"] .pular-conteudo { background: var(--cor-botao); }
+
+
+/* ==========================================================================
+   Gerador de referências
+   ========================================================================== */
+.grade-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--espaco-3); margin-top: var(--espaco-3); }
+.grade-form [hidden] { display: none; }
+.grade-form .f-largo { grid-column: 1 / -1; }
+.ferramenta textarea.curta { min-height: 4.5rem; font-family: var(--fonte-interface); font-size: 1rem; }
+.ferramenta input[type="date"], .ferramenta input[type="url"] {
+  width: 100%; font-family: var(--fonte-interface); font-size: 1rem; color: var(--cor-texto);
+  background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-radius: var(--raio-pequeno);
+  padding: var(--espaco-2) var(--espaco-3);
+}
+.ferramenta .rotulo-check { display: flex; align-items: center; gap: var(--espaco-2); font-weight: 400; margin: var(--espaco-2) 0 0; }
+.ferramenta .rotulo-check input { width: auto; }
+.obrigatorio { font-weight: 400; color: var(--cor-texto-suave); }
+.grade-refs { display: grid; gap: var(--espaco-3); }
+.ref-card h3 { margin: 0 0 var(--espaco-1); font-size: 1rem; }
+.ref-copiavel {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--fonte-texto); font-size: 1.02rem; line-height: 1.55; color: var(--cor-texto);
+  background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-left: 4px solid var(--cor-primaria);
+  border-radius: var(--raio); padding: var(--espaco-3); overflow-wrap: anywhere;
+}
+.ref-copiavel:hover:not(:disabled) { background: var(--cor-fundo-suave); }
+.ref-copiavel:disabled { cursor: default; color: var(--cor-texto-suave); }
+.ref-card.copiado .ref-copiavel { border-left-color: var(--cor-sucesso); }
+.ref-status { display: block; min-height: 1.3em; font-family: var(--fonte-interface); font-size: 0.85rem; color: var(--cor-sucesso); margin-top: var(--espaco-1); }
+.lista-refs { list-style: decimal; padding-left: var(--espaco-4); }
+.lista-refs li { margin-bottom: var(--espaco-3); overflow-wrap: anywhere; }
+.lista-refs .ref-botoes { display: flex; flex-wrap: wrap; gap: var(--espaco-2); margin-top: var(--espaco-2); }
+.lista-refs .ref-botoes .botao { padding: var(--espaco-1) var(--espaco-3); font-size: 0.85rem; }
+.botao:disabled { opacity: 0.5; cursor: not-allowed; }
