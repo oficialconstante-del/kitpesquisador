@@ -14,10 +14,11 @@ const CAMPOS_S2 =
   "title,authors,year,venue,journal,externalIds,url,openAccessPdf,isOpenAccess,citationCount,abstract,publicationTypes";
 
 const FONTES = [
-  { valor: "openalex", rotulo: "OpenAlex (mais filtros)" },
-  { valor: "crossref", rotulo: "Crossref (sem chave, menos filtros)" },
-  { valor: "semantic", rotulo: "Semantic Scholar (relevância; limite compartilhado)" },
+  { valor: "openalex", rotulo: "OpenAlex", dica: "mais filtros" },
+  { valor: "crossref", rotulo: "Crossref", dica: "registro de DOIs" },
+  { valor: "semantic", rotulo: "Semantic Scholar", dica: "limite compartilhado" },
 ];
+const NOMES_FONTE = Object.fromEntries(FONTES.map((f) => [f.valor, f.rotulo]));
 
 const TIPOS = [
   { valor: "", rotulo: "Qualquer tipo", openalex: "", crossref: "", s2: "" },
@@ -104,7 +105,7 @@ const ROTULOS_TIPO = {
 };
 
 const PADRAO = {
-  q: "", fonte: "openalex", de: "", ate: "", tipo: "", idioma: "", area: "",
+  q: "", fonte: "openalex", fontes: ["openalex"], de: "", ate: "", tipo: "", idioma: "", area: "",
   oa: false, br: false, campo: "ta", ord: "relevancia", pag: 1,
 };
 
@@ -137,7 +138,11 @@ function normalizarParametros(entrada) {
   const e = entrada || {};
   const p = { ...PADRAO };
   p.q = String(e.q || "").replace(/\s+/g, " ").trim().slice(0, 300);
-  p.fonte = dentro(FONTES, e.fonte) ? e.fonte : PADRAO.fonte;
+  // Várias fontes: array em e.fontes ou texto "openalex,crossref" em e.fonte. p.fonte = a primeira.
+  const pedidas = Array.isArray(e.fontes) ? e.fontes : String(e.fonte || "").split(",");
+  p.fontes = FONTES.map((f) => f.valor).filter((v) => pedidas.map((x) => String(x).trim()).includes(v));
+  if (!p.fontes.length) p.fontes = [PADRAO.fonte];
+  p.fonte = p.fontes[0];
   p.de = anoValido(e.de);
   p.ate = anoValido(e.ate);
   if (p.de && p.ate && Number(p.de) > Number(p.ate)) [p.de, p.ate] = [p.ate, p.de];
@@ -149,7 +154,7 @@ function normalizarParametros(entrada) {
   p.campo = dentro(CAMPOS_BUSCA, e.campo) ? e.campo : PADRAO.campo;
   p.ord = dentro(ORDENS, e.ord) ? e.ord : PADRAO.ord;
   const pag = parseInt(e.pag, 10);
-  p.pag = Number.isFinite(pag) && pag >= 1 ? Math.min(pag, Math.ceil(maxRegistros(p.fonte) / POR_PAGINA)) : 1;
+  p.pag = Number.isFinite(pag) && pag >= 1 ? Math.min(pag, Math.ceil(maxRegistrosFontes(p.fontes) / POR_PAGINA)) : 1;
   return p;
 }
 
@@ -165,7 +170,8 @@ function lerDaUrl(search) {
 function paraUrl(p) {
   const u = new URLSearchParams();
   if (p.q) u.set("q", p.q);
-  if (p.fonte !== PADRAO.fonte) u.set("fonte", p.fonte);
+  const fontes = (p.fontes || [p.fonte]).join(",");
+  if (fontes !== PADRAO.fonte) u.set("fonte", fontes);
   if (p.de) u.set("de", p.de);
   if (p.ate) u.set("ate", p.ate);
   if (p.tipo) u.set("tipo", p.tipo);
@@ -263,6 +269,57 @@ function filtrosIgnorados(p) {
 
 function maxRegistros(fonte) {
   return fonte === "semantic" ? MAX_REGISTROS_S2 : MAX_REGISTROS;
+}
+
+function maxRegistrosFontes(fontes) {
+  return Math.max(...(fontes && fontes.length ? fontes : [PADRAO.fonte]).map(maxRegistros));
+}
+
+/* ---------- busca combinada ---------- */
+
+// Mesmo DOI = mesma obra; sem DOI, compara título (sem acentos e pontuação) e ano.
+function chaveResultado(r) {
+  if (r.doi) return "doi:" + String(r.doi).toLowerCase();
+  const t = String(r.titulo || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return `t:${t}|${r.ano || ""}`;
+}
+
+const COMPLEMENTOS = ["resumo", "urlAberta", "urlS2", "volume", "numero", "paginas", "fonte", "idioma", "tipo"];
+
+// Junta as listas das fontes alternando as posições (1º de cada, 2º de cada…), para respeitar a
+// relevância de cada base, sem repetir obras. Campos vazios são completados pelas outras fontes.
+function mesclarResultados(listas, ord) {
+  const mapa = new Map();
+  const saida = [];
+  const maior = Math.max(0, ...listas.map((l) => l.resultados.length));
+  for (let i = 0; i < maior; i++) {
+    for (const l of listas) {
+      const r = l.resultados[i];
+      if (!r) continue;
+      const k = chaveResultado(r);
+      const ja = mapa.get(k);
+      if (!ja) {
+        const novo = { ...r, fontes: [l.fonte] };
+        mapa.set(k, novo);
+        saida.push(novo);
+        continue;
+      }
+      if (!ja.fontes.includes(l.fonte)) ja.fontes.push(l.fonte);
+      for (const c of COMPLEMENTOS) if (!ja[c] && r[c]) ja[c] = r[c];
+      if (r.aberto) ja.aberto = true;
+      if (!ja.autores.length && r.autores.length) ja.autores = r.autores;
+    }
+  }
+  const ano = (r) => Number(r.ano) || 0;
+  if (ord === "citacoes") saida.sort((a, b) => (b.citacoes || 0) - (a.citacoes || 0));
+  else if (ord === "recentes") saida.sort((a, b) => ano(b) - ano(a));
+  else if (ord === "antigos") saida.sort((a, b) => (ano(a) || 9999) - (ano(b) || 9999));
+  return saida;
+}
+
+// "a", "a e b", "a, b e c"
+function juntarNomes(l) {
+  return l.length <= 1 ? l.join("") : l.slice(0, -1).join(", ") + " e " + l[l.length - 1];
 }
 
 function urlSemantic(p, base) {
@@ -528,6 +585,7 @@ if (typeof module !== "undefined" && module.exports) {
     POR_PAGINA, MAX_REGISTROS, PADRAO, TIPOS, AREAS, IDIOMAS, ORDENS,
     normalizarParametros, lerDaUrl, paraUrl, urlOpenAlex, urlCrossref, filtrosIgnoradosCrossref,
     urlSemantic, filtrosIgnoradosS2, filtrosIgnorados, maxRegistros, normalizarSemantic, AREAS_S2, MAX_REGISTROS_S2,
+    maxRegistrosFontes, chaveResultado, mesclarResultados, juntarNomes, NOMES_FONTE, FONTES,
     reconstruirResumo, limparJats, normalizarOpenAlex, normalizarCrossref,
     formatarNomeAbnt, ajustarCaixaTitulo, referenciaAbnt, resultadoParaRef, adicionarRef, urlsOutrasBases, urlSegura, limparDoi,
   };
@@ -549,7 +607,7 @@ if (typeof document !== "undefined") {
     const CHAVE_LS = "kp_openalex_key";
 
     const campos = {
-      q: $("q"), fonte: $("fonte"), de: $("de"), ate: $("ate"), tipo: $("tipo"),
+      q: $("q"), de: $("de"), ate: $("ate"), tipo: $("tipo"),
       idioma: $("idioma"), area: $("area"), oa: $("oa"), br: $("br"), campo: $("campo"), ord: $("ord"),
     };
     const status = $("status");
@@ -568,7 +626,22 @@ if (typeof document !== "undefined") {
         select.appendChild(o);
       }
     }
-    preencher(campos.fonte, FONTES);
+    const caixaFontes = $("fontes");
+    for (const f of FONTES) {
+      const l = document.createElement("label");
+      l.className = "marcador";
+      const i = document.createElement("input");
+      i.type = "checkbox"; i.name = "fonte"; i.value = f.valor;
+      const dica = document.createElement("span");
+      dica.className = "dica-fonte";
+      dica.textContent = `(${f.dica})`;
+      l.append(i, ` ${f.rotulo} `, dica);
+      caixaFontes.appendChild(l);
+    }
+    const fontesMarcadas = () => Array.from(caixaFontes.querySelectorAll("input:checked")).map((i) => i.value);
+    function marcarFontes(lista) {
+      caixaFontes.querySelectorAll("input").forEach((i) => { i.checked = lista.includes(i.value); });
+    }
     preencher(campos.tipo, TIPOS);
     preencher(campos.idioma, IDIOMAS);
     preencher(campos.area, AREAS);
@@ -585,29 +658,38 @@ if (typeof document !== "undefined") {
 
     function lerFormulario() {
       return normalizarParametros({
-        q: campos.q.value, fonte: campos.fonte.value, de: campos.de.value, ate: campos.ate.value,
+        q: campos.q.value, fontes: fontesMarcadas(), de: campos.de.value, ate: campos.ate.value,
         tipo: campos.tipo.value, idioma: campos.idioma.value, area: campos.area.value,
         oa: campos.oa.checked, br: campos.br.checked, campo: campos.campo.value, ord: campos.ord.value, pag: 1,
       });
     }
 
     function escreverFormulario(p) {
-      campos.q.value = p.q; campos.fonte.value = p.fonte; campos.de.value = p.de; campos.ate.value = p.ate;
+      campos.q.value = p.q; marcarFontes(p.fontes); campos.de.value = p.de; campos.ate.value = p.ate;
       campos.tipo.value = p.tipo; campos.idioma.value = p.idioma; campos.area.value = p.area;
       campos.oa.checked = p.oa; campos.br.checked = p.br; campos.campo.value = p.campo; campos.ord.value = p.ord;
       atualizarFonte();
     }
 
+    // Filtros que cada fonte aceita (ano e tipo valem para todas).
+    const SUPORTE = { openalex: ["idioma", "area", "oa", "br", "campo", "ord"], crossref: ["ord"], semantic: ["area", "oa"] };
+
     function atualizarFonte() {
-      const f = campos.fonte.value;
-      const bloqueados = f === "crossref" ? ["idioma", "area", "oa", "br", "campo"] : f === "semantic" ? ["idioma", "br", "campo", "ord"] : [];
-      for (const k of ["idioma", "area", "oa", "br", "campo", "ord"]) campos[k].disabled = bloqueados.includes(k);
+      const fs = fontesMarcadas();
+      for (const k of ["idioma", "area", "oa", "br", "campo", "ord"]) {
+        // Na busca combinada a ordenação é aplicada ao conjunto, então vale sempre.
+        campos[k].disabled = !(fs.some((f) => SUPORTE[f].includes(k)) || (k === "ord" && fs.length > 1));
+      }
       const textos = {
         crossref: "No Crossref não há filtro de idioma, área, acesso aberto nem instituição, e a busca é feita em todos os campos do registro. Use o OpenAlex para esses filtros.",
         semantic: "No Semantic Scholar os resultados vêm sempre por relevância, sem filtro de idioma nem de instituição, e a paginação vai até 1.000 resultados. A área usa as categorias dele (nem todas têm equivalente). O limite gratuito é dividido entre todos os usuários da internet: se a busca falhar, espere alguns segundos e tente de novo.",
       };
-      nota.hidden = !textos[f];
-      nota.textContent = textos[f] || "";
+      const partes = fs.map((f) => textos[f]).filter(Boolean);
+      if (fs.length > 1) {
+        partes.unshift(`Busca combinada em ${juntarNomes(fs.map((f) => NOMES_FONTE[f]))}: cada página traz até ${POR_PAGINA} resultados de cada fonte, sem repetir a mesma obra (mesmo DOI ou mesmo título e ano). Cada filtro vale nas fontes que o oferecem.`);
+      }
+      nota.hidden = !partes.length;
+      nota.textContent = partes.join(" ");
     }
 
     function atualizarOutrasBases() {
@@ -701,6 +783,7 @@ if (typeof document !== "undefined") {
       if (meta) li.appendChild(el("p", "meta", meta));
 
       const selos = el("p", "selos");
+      if (r.fontes) selos.appendChild(el("span", "selo selo-fonte", r.fontes.map((f) => NOMES_FONTE[f]).join(" + ")));
       if (r.tipo) selos.appendChild(el("span", "selo", r.tipo));
       if (r.idioma) selos.appendChild(el("span", "selo", r.idioma.toUpperCase()));
       selos.appendChild(el("span", "selo", `${nf.format(r.citacoes)} citações`));
@@ -742,7 +825,7 @@ if (typeof document !== "undefined") {
 
     function desenharPaginacao(p, total) {
       paginacao.textContent = "";
-      const maxPag = Math.min(Math.ceil(total / POR_PAGINA), Math.ceil(maxRegistros(p.fonte) / POR_PAGINA));
+      const maxPag = Math.min(Math.ceil(total / POR_PAGINA), Math.ceil(maxRegistrosFontes(p.fontes) / POR_PAGINA));
       if (maxPag <= 1) return;
       const ir = (pag) => { const novo = { ...p, pag }; history.pushState(null, "", paraUrl(novo)); executar(novo); window.scrollTo({ top: form.offsetTop, behavior: "smooth" }); };
       const ant = el("button", "botao botao-secundario", "‹ Anterior");
@@ -761,7 +844,7 @@ if (typeof document !== "undefined") {
 
     // A resposta 429 do Semantic Scholar não traz cabeçalho CORS, então o navegador a vê como
     // falha de rede. Por isso tanto o 429 quanto o TypeError contam como "tente de novo".
-    async function buscarSemantic(url, ctl) {
+    async function buscarSemantic(url, ctl, silencioso) {
       const pausas = [1500, 3500];
       for (let tentativa = 0; ; tentativa++) {
         let erro;
@@ -775,7 +858,7 @@ if (typeof document !== "undefined") {
           erro = e;
         }
         if (tentativa >= pausas.length) throw erro;
-        mostrarMensagem(`O Semantic Scholar está ocupado. Tentando de novo (${tentativa + 2} de ${pausas.length + 1})…`, "");
+        if (!silencioso) mostrarMensagem(`O Semantic Scholar está ocupado. Tentando de novo (${tentativa + 2} de ${pausas.length + 1})…`, "");
         await esperar(pausas[tentativa], ctl);
       }
     }
@@ -791,34 +874,16 @@ if (typeof document !== "undefined") {
       const hoje = new Date().toISOString().slice(0, 10);
       let chave = "";
       try { chave = localStorage.getItem(CHAVE_LS) || ""; } catch (e) { /* ok */ }
+      if (p.fontes.length > 1) { await executarCombinada(p, meu, hoje, chave); return; }
       try {
-        let total, resultados, totalReal;
-        if (p.fonte === "semantic") {
-          const d = await buscarSemantic(urlSemantic(p, baseSemantic), meu);
-          total = Math.min(d.total || 0, MAX_REGISTROS_S2);
-          totalReal = d.total || 0;
-          resultados = (d.data || []).map(normalizarSemantic);
-        } else if (p.fonte === "crossref") {
-          const r = await fetch(urlCrossref(p, baseCrossref, hoje), { signal: meu.signal });
-          if (!r.ok) { const e = new Error("http"); e.status = r.status; throw e; }
-          const d = await r.json();
-          total = d.message["total-results"] || 0;
-          resultados = (d.message.items || []).map(normalizarCrossref);
-        } else {
-          const r = await fetch(urlOpenAlex(p, baseOpenAlex, chave, hoje), { signal: meu.signal });
-          if (!r.ok) { const e = new Error("http"); e.status = r.status; throw e; }
-          const d = await r.json();
-          total = (d.meta && d.meta.count) || 0;
-          resultados = (d.results || []).map(normalizarOpenAlex);
-        }
+        const { total, totalReal, resultados } = await consultar(p.fonte, p, meu, hoje, chave, false);
         if (!resultados.length) {
           mostrarMensagem("Nenhum resultado. Tente menos filtros, outros termos ou outra fonte.", "alerta");
           return;
         }
-        const nomeFonte = { crossref: "Crossref", semantic: "Semantic Scholar" }[p.fonte] || "OpenAlex";
         const ini = (p.pag - 1) * POR_PAGINA + 1;
         const ignorados = filtrosIgnorados(p);
-        let msg = `${nf.format(totalReal || total)} resultados no ${nomeFonte}. Mostrando ${nf.format(ini)}–${nf.format(ini + resultados.length - 1)}.`;
+        let msg = `${nf.format(totalReal)} resultados no ${NOMES_FONTE[p.fonte]}. Mostrando ${nf.format(ini)}–${nf.format(ini + resultados.length - 1)}.`;
         if (totalReal > total) msg += ` O Semantic Scholar só pagina os ${nf.format(MAX_REGISTROS_S2)} primeiros; refine a busca para ver outros.`;
         if (ignorados.length) msg += ` Filtros ignorados nesta fonte: ${ignorados.join(", ")}.`;
         mostrarMensagem(msg, "");
@@ -826,22 +891,72 @@ if (typeof document !== "undefined") {
         desenharPaginacao(p, total);
       } catch (e) {
         if (e.name === "AbortError") return;
-        if (p.fonte === "semantic" && (e.status === 429 || !e.status)) {
-          mostrarMensagem(
-            "O Semantic Scholar recusou a consulta agora: o limite gratuito é dividido entre todos os usuários da internet e estava esgotado (ou a conexão falhou). Espere alguns segundos e busque de novo, ou use o OpenAlex.",
-            "erro"
-          );
-        } else if (e.status === 429 || e.status === 403) {
-          mostrarMensagem(
-            "O limite gratuito diário do OpenAlex para a sua rede foi atingido. Você pode tentar o Crossref, voltar amanhã ou colocar uma chave gratuita do OpenAlex em \"Opções avançadas\".",
-            "erro"
-          );
-        } else if (e.status) {
-          mostrarMensagem(`A base respondeu com erro (código ${e.status}). Tente novamente em instantes ou use outra fonte.`, "erro");
-        } else {
-          mostrarMensagem("Não foi possível consultar a base agora. Verifique sua conexão ou tente outra fonte.", "erro");
-        }
+        mostrarMensagem(mensagemErro(p.fonte, e), "erro");
       }
+    }
+
+    // Consulta uma fonte e devolve { total (paginável), totalReal, resultados normalizados }.
+    async function consultar(fonte, p, ctl, hoje, chave, silencioso) {
+      const q = { ...p, fonte };
+      if (fonte === "semantic") {
+        const d = await buscarSemantic(urlSemantic(q, baseSemantic), ctl, silencioso);
+        return { total: Math.min(d.total || 0, MAX_REGISTROS_S2), totalReal: d.total || 0, resultados: (d.data || []).map(normalizarSemantic) };
+      }
+      const url = fonte === "crossref" ? urlCrossref(q, baseCrossref, hoje) : urlOpenAlex(q, baseOpenAlex, chave, hoje);
+      const r = await fetch(url, { signal: ctl.signal });
+      if (!r.ok) { const e = new Error("http"); e.status = r.status; throw e; }
+      const d = await r.json();
+      if (fonte === "crossref") {
+        const t = d.message["total-results"] || 0;
+        return { total: Math.min(t, MAX_REGISTROS), totalReal: t, resultados: (d.message.items || []).map(normalizarCrossref) };
+      }
+      const t = (d.meta && d.meta.count) || 0;
+      return { total: Math.min(t, MAX_REGISTROS), totalReal: t, resultados: (d.results || []).map(normalizarOpenAlex) };
+    }
+
+    function mensagemErro(fonte, e) {
+      if (fonte === "semantic" && (e.status === 429 || !e.status)) {
+        return "O Semantic Scholar recusou a consulta agora: o limite gratuito é dividido entre todos os usuários da internet e estava esgotado (ou a conexão falhou). Espere alguns segundos e busque de novo, ou use outra fonte.";
+      }
+      if (fonte === "openalex" && (e.status === 429 || e.status === 403)) {
+        return "O limite gratuito diário do OpenAlex para a sua rede foi atingido. Você pode tentar o Crossref, voltar amanhã ou colocar uma chave gratuita do OpenAlex em \"Opções avançadas\".";
+      }
+      if (e.status) return `O ${NOMES_FONTE[fonte]} respondeu com erro (código ${e.status}). Tente novamente em instantes ou use outra fonte.`;
+      return `Não foi possível consultar o ${NOMES_FONTE[fonte]} agora. Verifique sua conexão ou tente outra fonte.`;
+    }
+
+    async function executarCombinada(p, ctl, hoje, chave) {
+      mostrarMensagem(`Buscando em ${juntarNomes(p.fontes.map((f) => NOMES_FONTE[f]))}…`, "");
+      const res = await Promise.allSettled(p.fontes.map((f) => consultar(f, p, ctl, hoje, chave, true)));
+      if (ctl.signal.aborted) return;
+      const ok = [];
+      const falhas = [];
+      res.forEach((r, i) => {
+        if (r.status === "fulfilled") ok.push({ fonte: p.fontes[i], ...r.value });
+        else falhas.push({ fonte: p.fontes[i], erro: r.reason || {} });
+      });
+      if (!ok.length) {
+        mostrarMensagem(falhas.map((f) => mensagemErro(f.fonte, f.erro)).join(" "), "erro");
+        return;
+      }
+      const mescla = mesclarResultados(ok.map((o) => ({ fonte: o.fonte, resultados: o.resultados })), p.ord);
+      const avisoFalhas = falhas.map((f) =>
+        `O ${NOMES_FONTE[f.fonte]} não respondeu${f.fonte === "semantic" ? " (limite compartilhado; tente de novo em alguns segundos)" : ""}.`
+      ).join(" ");
+      if (!mescla.length) {
+        mostrarMensagem(("Nenhum resultado. Tente menos filtros ou outros termos. " + avisoFalhas).trim(), "alerta");
+        return;
+      }
+      const contagens = ok.map((o) => `${NOMES_FONTE[o.fonte]} (${nf.format(o.totalReal)})`);
+      let msg = `Busca combinada em ${juntarNomes(contagens)}. Página ${nf.format(p.pag)}: ${nf.format(mescla.length)} obras, sem repetições.`;
+      const ign = ok.map((o) => o.fonte)
+        .map((f) => { const x = filtrosIgnorados({ ...p, fonte: f }); return x.length ? `no ${NOMES_FONTE[f]}, ${x.join(", ")}` : ""; })
+        .filter(Boolean);
+      if (ign.length) msg += ` Filtros ignorados: ${ign.join("; ")}.`;
+      if (avisoFalhas) msg += " " + avisoFalhas;
+      mostrarMensagem(msg, falhas.length ? "alerta" : "");
+      for (const r of mescla) lista.appendChild(cartao(r));
+      desenharPaginacao(p, Math.max(...ok.map((o) => o.total)));
     }
 
     form.addEventListener("submit", (ev) => {
@@ -851,7 +966,10 @@ if (typeof document !== "undefined") {
       executar(p);
       atualizarOutrasBases();
     });
-    campos.fonte.addEventListener("change", atualizarFonte);
+    caixaFontes.addEventListener("change", (ev) => {
+      if (!fontesMarcadas().length) ev.target.checked = true; // pelo menos uma fonte
+      atualizarFonte();
+    });
     form.addEventListener("input", atualizarOutrasBases);
     window.addEventListener("popstate", () => {
       const p = lerDaUrl(location.search);
