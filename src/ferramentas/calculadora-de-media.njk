@@ -1,0 +1,86 @@
+---
+layout: base.njk
+titulo: "Calculadora de média ponderada e nota necessária"
+descricao: "Calcule a média ponderada das suas notas e descubra quanto precisa tirar na prova que falta para atingir a média desejada. Grátis, sem cadastro."
+scripts:
+  - media.js
+---
+<nav class="trilha" aria-label="Você está em"><a href="/">Início</a> › <a href="/ferramentas/">Ferramentas</a> › Calculadora de média</nav>
+
+<h1>Calculadora de média ponderada e nota necessária</h1>
+<p class="texto">Digite as notas que você já tirou e o peso de cada avaliação. A média ponderada aparece na hora. Para saber quanto precisa na avaliação que falta, informe a média desejada e o peso dela.</p>
+
+<section class="ferramenta cartao" aria-label="Calculadora">
+  <table class="tabela-notas">
+    <thead>
+      <tr><th scope="col">#</th><th scope="col">Nota</th><th scope="col">Peso</th><th scope="col"><span class="so-leitor-de-tela">Ações</span></th></tr>
+    </thead>
+    <tbody id="linhas"></tbody>
+  </table>
+  <button type="button" id="adicionar" class="botao botao-secundario">Adicionar avaliação</button>
+
+  <div class="resultados" role="status" aria-live="polite">
+    <div class="metrica"><strong id="r-media">—</strong><span>média ponderada</span></div>
+    <div class="metrica"><strong id="r-pesos">—</strong><span>soma dos pesos</span></div>
+  </div>
+
+  <h2>Quanto preciso tirar?</h2>
+  <div class="linha-controles">
+    <div>
+      <label for="media-alvo">Média desejada</label>
+      <input id="media-alvo" type="text" inputmode="decimal" value="7">
+    </div>
+    <div>
+      <label for="peso-restante">Peso da avaliação que falta</label>
+      <input id="peso-restante" type="text" inputmode="decimal" value="1">
+    </div>
+    <div>
+      <label for="nota-maxima">Nota máxima</label>
+      <input id="nota-maxima" type="text" inputmode="decimal" value="10">
+    </div>
+  </div>
+  <div id="r-necessaria" class="mensagem" role="status" aria-live="polite"></div>
+  <p class="aviso">Cada instituição tem regras próprias (média mínima, recuperação, exame final, arredondamento). Use o resultado como estimativa e confirme as regras no regulamento da sua escola ou universidade.</p>
+</section>
+
+<div class="texto">
+  <h2>Como é calculada a média ponderada</h2>
+  <p>Na média ponderada, cada nota é multiplicada pelo seu peso, os resultados são somados, e o total é dividido pela soma dos pesos:</p>
+  <p><strong>média = (nota₁ × peso₁ + nota₂ × peso₂ + …) ÷ (peso₁ + peso₂ + …)</strong></p>
+  <p>Exemplo: se você tirou 8 numa avaliação de peso 2 e 6 em outra de peso 3, a média é (8 × 2 + 6 × 3) ÷ (2 + 3) = 34 ÷ 5 = 6,8. Perceba que o resultado ficou mais perto de 6 do que de 8, porque a prova de peso maior tem mais influência. Se todos os pesos forem iguais, a média ponderada coincide com a média aritmética.</p>
+
+  <h2>Como é calculada a nota necessária</h2>
+  <p>Para descobrir a nota que falta, o cálculo faz o caminho inverso: multiplica a média desejada pela soma de todos os pesos (incluindo o da avaliação restante), subtrai o que você já acumulou e divide pelo peso da avaliação que falta:</p>
+  <p><strong>nota necessária = (média desejada × (pesos atuais + peso restante) − soma das notas × pesos) ÷ peso restante</strong></p>
+  <p>Exemplo: você tirou 6 e 5, ambas com peso 1, e a última prova tem peso 2. Para fechar com média 7: (7 × 4 − 11) ÷ 2 = 8,5. Você precisa de 8,5 na última prova.</p>
+  <p>A calculadora avisa em três situações: quando a nota necessária é possível; quando é maior que a nota máxima, caso em que a média desejada não pode mais ser atingida com essas notas; e quando você já passou da média e qualquer nota mantém a aprovação.</p>
+
+  <h2>Cuidados ao interpretar o resultado</h2>
+  <ul>
+    <li><strong>Regras de arredondamento:</strong> algumas instituições arredondam a média final (por exemplo, 6,95 para 7,0), outras não. Esta calculadora mostra até duas casas decimais, sem arredondar a regra da sua escola.</li>
+    <li><strong>Notas em outra escala:</strong> se a sua escala vai de 0 a 100, altere o campo "Nota máxima" e a média desejada para a mesma escala.</li>
+    <li><strong>Recuperação e exame final:</strong> essas etapas costumam ter fórmulas próprias, que substituem ou combinam notas de forma diferente. Para elas, use o regulamento oficial.</li>
+    <li><strong>Pesos em porcentagem:</strong> se os pesos forem porcentagens (30%, 30%, 40%), digite 30, 30 e 40 normalmente. O resultado é o mesmo.</li>
+  </ul>
+
+  <h2>Privacidade</h2>
+  <p>Todo o cálculo é feito no seu navegador. As notas que você digita não são enviadas nem guardadas por este site.</p>
+
+  <h2>Perguntas frequentes</h2>
+  <details>
+    <summary>Posso usar vírgula nas notas?</summary>
+    <p>Sim. Tanto "7,5" quanto "7.5" funcionam.</p>
+  </details>
+  <details>
+    <summary>E se as avaliações tiverem todas o mesmo peso?</summary>
+    <p>Deixe o peso 1 em todas. Nesse caso, a média ponderada é igual à média aritmética simples.</p>
+  </details>
+  <details>
+    <summary>A calculadora diz que é impossível. O que isso significa?</summary>
+    <p>Significa que, com as notas atuais, mesmo tirando a nota máxima na avaliação restante, a média desejada não seria atingida. Veja se há recuperação ou outra avaliação prevista no regulamento.</p>
+  </details>
+  <details>
+    <summary>Posso calcular quando faltam duas avaliações?</summary>
+    <p>Some os pesos das duas avaliações restantes no campo "Peso da avaliação que falta". O resultado será a nota média que você precisa nas duas juntas.</p>
+  </details>
+</div>

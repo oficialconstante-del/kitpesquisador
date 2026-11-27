@@ -1,0 +1,641 @@
+/* Buscador acadêmico do Kit Pesquisador.
+   Consulta o OpenAlex e o Crossref direto do navegador do visitante (sem servidor próprio).
+   A lógica (montar URLs, normalizar respostas, formatar referências) é separada da interface
+   para poder ser testada em Node (npm test). */
+
+const POR_PAGINA = 25;
+const MAX_REGISTROS = 10000; // limite de paginação das duas APIs
+const SELECT_OPENALEX =
+  "id,doi,title,display_name,publication_year,type,language,cited_by_count,open_access,primary_location,authorships,biblio,abstract_inverted_index";
+const SELECT_CROSSREF =
+  "DOI,title,author,container-title,issued,type,volume,issue,page,URL,is-referenced-by-count,abstract";
+
+const FONTES = [
+  { valor: "openalex", rotulo: "OpenAlex (mais filtros)" },
+  { valor: "crossref", rotulo: "Crossref (sem chave, menos filtros)" },
+];
+
+const TIPOS = [
+  { valor: "", rotulo: "Qualquer tipo", openalex: "", crossref: "" },
+  { valor: "artigo", rotulo: "Artigo", openalex: "article", crossref: "journal-article" },
+  { valor: "livro", rotulo: "Livro", openalex: "book", crossref: "monograph" },
+  { valor: "capitulo", rotulo: "Capítulo de livro", openalex: "book-chapter", crossref: "book-chapter" },
+  { valor: "tese", rotulo: "Tese ou dissertação", openalex: "dissertation", crossref: "dissertation" },
+  { valor: "preprint", rotulo: "Preprint", openalex: "preprint", crossref: "posted-content" },
+];
+
+const IDIOMAS = [
+  { valor: "", rotulo: "Qualquer idioma" },
+  { valor: "pt", rotulo: "Português" },
+  { valor: "en", rotulo: "Inglês" },
+  { valor: "es", rotulo: "Espanhol" },
+  { valor: "fr", rotulo: "Francês" },
+  { valor: "de", rotulo: "Alemão" },
+  { valor: "it", rotulo: "Italiano" },
+];
+
+// campo:N = campo (OpenAlex "field"); sub:N = subárea ("subfield"). IDs conferidos na API.
+const AREAS = [
+  { valor: "", rotulo: "Todas as áreas" },
+  { valor: "campo:12", rotulo: "Artes e Humanidades (todas)" },
+  { valor: "sub:1202", rotulo: "História" },
+  { valor: "sub:1211", rotulo: "Filosofia" },
+  { valor: "sub:1207", rotulo: "História e Filosofia da Ciência" },
+  { valor: "sub:1208", rotulo: "Literatura e Teoria Literária" },
+  { valor: "sub:1203", rotulo: "Língua e Linguística" },
+  { valor: "sub:1212", rotulo: "Estudos Religiosos" },
+  { valor: "sub:1204", rotulo: "Arqueologia" },
+  { valor: "sub:1205", rotulo: "Clássicos" },
+  { valor: "sub:1209", rotulo: "Museologia" },
+  { valor: "sub:1213", rotulo: "Artes Visuais e Cênicas" },
+  { valor: "campo:33", rotulo: "Ciências Sociais (todas)" },
+  { valor: "sub:3304", rotulo: "Educação" },
+  { valor: "sub:3314", rotulo: "Antropologia" },
+  { valor: "sub:3312", rotulo: "Sociologia e Ciência Política" },
+  { valor: "sub:3316", rotulo: "Estudos Culturais" },
+  { valor: "sub:3309", rotulo: "Biblioteconomia e Ciência da Informação" },
+  { valor: "sub:3308", rotulo: "Direito" },
+];
+
+const ORDENS = [
+  { valor: "relevancia", rotulo: "Mais relevantes" },
+  { valor: "citacoes", rotulo: "Mais citados" },
+  { valor: "recentes", rotulo: "Mais recentes" },
+  { valor: "antigos", rotulo: "Mais antigos" },
+];
+
+const CAMPOS_BUSCA = [
+  { valor: "ta", rotulo: "Título e resumo" },
+  { valor: "tudo", rotulo: "Texto completo, quando disponível (mais resultados)" },
+];
+
+const ROTULOS_TIPO = {
+  article: "Artigo",
+  book: "Livro",
+  "book-chapter": "Capítulo",
+  dissertation: "Tese/Dissertação",
+  preprint: "Preprint",
+  review: "Revisão",
+  report: "Relatório",
+  "journal-article": "Artigo",
+  monograph: "Livro",
+  "edited-book": "Livro",
+  "reference-book": "Livro",
+  "posted-content": "Preprint",
+  "proceedings-article": "Trabalho em evento",
+};
+
+const PADRAO = {
+  q: "", fonte: "openalex", de: "", ate: "", tipo: "", idioma: "", area: "",
+  oa: false, br: false, campo: "ta", ord: "relevancia", pag: 1,
+};
+
+/* ---------- utilidades ---------- */
+
+const enc = encodeURIComponent;
+const dentro = (lista, v) => lista.some((x) => x.valor === v);
+
+function urlSegura(u) {
+  return typeof u === "string" && /^https?:\/\//i.test(u.trim()) ? u.trim() : "";
+}
+
+function limparDoi(d) {
+  if (!d) return "";
+  return String(d).trim().replace(/^https?:\/\/(dx\.)?doi\.org\//i, "");
+}
+
+function anoValido(v) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n >= 1000 && n <= 2100 ? String(n) : "";
+}
+
+function rotuloTipo(t) {
+  return ROTULOS_TIPO[t] || (t ? String(t) : "");
+}
+
+/* ---------- parâmetros e URL da página ---------- */
+
+function normalizarParametros(entrada) {
+  const e = entrada || {};
+  const p = { ...PADRAO };
+  p.q = String(e.q || "").replace(/\s+/g, " ").trim().slice(0, 300);
+  p.fonte = dentro(FONTES, e.fonte) ? e.fonte : PADRAO.fonte;
+  p.de = anoValido(e.de);
+  p.ate = anoValido(e.ate);
+  if (p.de && p.ate && Number(p.de) > Number(p.ate)) [p.de, p.ate] = [p.ate, p.de];
+  p.tipo = dentro(TIPOS, e.tipo) ? e.tipo : "";
+  p.idioma = dentro(IDIOMAS, e.idioma) ? e.idioma : "";
+  p.area = dentro(AREAS, e.area) ? e.area : "";
+  p.oa = e.oa === true || e.oa === "1";
+  p.br = e.br === true || e.br === "1";
+  p.campo = dentro(CAMPOS_BUSCA, e.campo) ? e.campo : PADRAO.campo;
+  p.ord = dentro(ORDENS, e.ord) ? e.ord : PADRAO.ord;
+  const pag = parseInt(e.pag, 10);
+  p.pag = Number.isFinite(pag) && pag >= 1 ? Math.min(pag, Math.floor(MAX_REGISTROS / POR_PAGINA)) : 1;
+  return p;
+}
+
+function lerDaUrl(search) {
+  const u = new URLSearchParams(search || "");
+  return normalizarParametros({
+    q: u.get("q"), fonte: u.get("fonte"), de: u.get("de"), ate: u.get("ate"), tipo: u.get("tipo"),
+    idioma: u.get("idioma"), area: u.get("area"), oa: u.get("aberto"), br: u.get("br"),
+    campo: u.get("campo"), ord: u.get("ord"), pag: u.get("p"),
+  });
+}
+
+function paraUrl(p) {
+  const u = new URLSearchParams();
+  if (p.q) u.set("q", p.q);
+  if (p.fonte !== PADRAO.fonte) u.set("fonte", p.fonte);
+  if (p.de) u.set("de", p.de);
+  if (p.ate) u.set("ate", p.ate);
+  if (p.tipo) u.set("tipo", p.tipo);
+  if (p.idioma) u.set("idioma", p.idioma);
+  if (p.area) u.set("area", p.area);
+  if (p.oa) u.set("aberto", "1");
+  if (p.br) u.set("br", "1");
+  if (p.campo !== PADRAO.campo) u.set("campo", p.campo);
+  if (p.ord !== PADRAO.ord) u.set("ord", p.ord);
+  if (p.pag > 1) u.set("p", String(p.pag));
+  const s = u.toString();
+  return s ? "?" + s : "";
+}
+
+/* ---------- montagem das URLs das APIs ---------- */
+
+// Vírgula, barra vertical e dois-pontos têm função na sintaxe de filtros do OpenAlex.
+const paraFiltro = (txt) => String(txt).replace(/[,|:]/g, " ").replace(/\s+/g, " ").trim();
+
+function urlOpenAlex(p, base, chave, hoje) {
+  const filtros = [];
+  const de = p.de ? Number(p.de) : null;
+  const ate = p.ate ? Number(p.ate) : null;
+  if (de && ate) filtros.push(`publication_year:${de}-${ate}`);
+  else if (de) filtros.push(`publication_year:>${de - 1}`);
+  else if (ate) filtros.push(`publication_year:<${ate + 1}`);
+  const tipo = TIPOS.find((t) => t.valor === p.tipo);
+  if (tipo && tipo.openalex) filtros.push(`type:${tipo.openalex}`);
+  if (p.idioma) filtros.push(`language:${p.idioma}`);
+  if (p.oa) filtros.push("is_oa:true");
+  if (p.br) filtros.push("authorships.institutions.country_code:BR");
+  if (p.area) {
+    const [nivel, id] = p.area.split(":");
+    filtros.push(nivel === "campo" ? `primary_topic.field.id:${id}` : `primary_topic.subfield.id:${id}`);
+  }
+  if (p.ord === "recentes" && hoje) filtros.push(`to_publication_date:${hoje}`);
+  const partes = [];
+  if (p.campo === "ta") filtros.push(`title_and_abstract.search:${enc(paraFiltro(p.q))}`);
+  else partes.push(`search=${enc(p.q)}`);
+  if (filtros.length) partes.push(`filter=${filtros.join(",")}`);
+  const sort = { citacoes: "cited_by_count:desc", recentes: "publication_date:desc", antigos: "publication_date:asc" }[p.ord];
+  if (sort) partes.push(`sort=${sort}`);
+  partes.push(`per_page=${POR_PAGINA}`, `page=${p.pag}`, `select=${SELECT_OPENALEX}`);
+  if (chave) partes.push(`api_key=${enc(chave)}`);
+  return `${base.replace(/\/$/, "")}/works?${partes.join("&")}`;
+}
+
+// Filtros que o Crossref não oferece e que, por isso, são ignorados nessa fonte.
+function filtrosIgnoradosCrossref(p) {
+  const lista = [];
+  if (p.idioma) lista.push("idioma");
+  if (p.area) lista.push("área");
+  if (p.oa) lista.push("acesso aberto");
+  if (p.br) lista.push("instituição no Brasil");
+  return lista;
+}
+
+function urlCrossref(p, base, hoje) {
+  const filtros = [];
+  if (p.de) filtros.push(`from-pub-date:${p.de}`);
+  if (p.ate) filtros.push(`until-pub-date:${p.ate}`);
+  else if (p.ord === "recentes" && hoje) filtros.push(`until-pub-date:${hoje}`);
+  const tipo = TIPOS.find((t) => t.valor === p.tipo);
+  if (tipo && tipo.crossref) filtros.push(`type:${tipo.crossref}`);
+  const partes = [`query=${enc(p.q)}`];
+  if (filtros.length) partes.push(`filter=${filtros.join(",")}`);
+  const ordem = {
+    relevancia: "sort=relevance&order=desc",
+    citacoes: "sort=is-referenced-by-count&order=desc",
+    recentes: "sort=published&order=desc",
+    antigos: "sort=published&order=asc",
+  }[p.ord];
+  partes.push(ordem);
+  partes.push(`rows=${POR_PAGINA}`, `offset=${(p.pag - 1) * POR_PAGINA}`, `select=${SELECT_CROSSREF}`);
+  return `${base.replace(/\/$/, "")}/works?${partes.join("&")}`;
+}
+
+/* ---------- normalização das respostas ---------- */
+
+function reconstruirResumo(indice) {
+  if (!indice || typeof indice !== "object") return "";
+  const palavras = [];
+  for (const [palavra, posicoes] of Object.entries(indice)) {
+    if (!Array.isArray(posicoes)) continue;
+    for (const i of posicoes) palavras[i] = palavra;
+  }
+  return palavras.filter((x) => x !== undefined).join(" ");
+}
+
+function limparJats(txt) {
+  if (!txt) return "";
+  return String(txt)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^(abstract|resumo|resumen|résumé)\s*[:.]?\s+/i, "");
+}
+
+function normalizarOpenAlex(w) {
+  const loc = w.primary_location || {};
+  const fonte = loc.source || {};
+  const oa = w.open_access || {};
+  const biblio = w.biblio || {};
+  const doi = limparDoi(w.doi);
+  const primeira = biblio.first_page || "";
+  const ultima = biblio.last_page || "";
+  return {
+    id: w.id || "",
+    titulo: w.title || w.display_name || "(sem título)",
+    autores: (w.authorships || [])
+      .map((a) => ({ nome: (a.author && a.author.display_name) || a.raw_author_name || "" }))
+      .filter((a) => a.nome),
+    fonte: fonte.display_name || "",
+    ano: w.publication_year || null,
+    tipo: rotuloTipo(w.type),
+    idioma: w.language || "",
+    doi,
+    url: urlSegura(loc.landing_page_url) || (doi ? `https://doi.org/${doi}` : urlSegura(w.id)),
+    urlAberta: urlSegura(oa.oa_url) || urlSegura(loc.pdf_url),
+    aberto: !!oa.is_oa,
+    citacoes: w.cited_by_count || 0,
+    resumo: reconstruirResumo(w.abstract_inverted_index),
+    volume: biblio.volume || "",
+    numero: biblio.issue || "",
+    paginas: primeira && ultima && primeira !== ultima ? `${primeira}-${ultima}` : primeira,
+  };
+}
+
+function normalizarCrossref(it) {
+  const doi = (it.DOI || "").trim();
+  const partesData = it.issued && it.issued["date-parts"] && it.issued["date-parts"][0];
+  return {
+    id: doi,
+    titulo: (it.title && it.title[0]) || "(sem título)",
+    autores: (it.author || [])
+      .map((a) =>
+        a.name
+          ? { nome: a.name, entidade: true }
+          : { nome: [a.given, a.family].filter(Boolean).join(" "), dado: a.given || "", sobrenome: a.family || "" }
+      )
+      .filter((a) => a.nome),
+    fonte: (it["container-title"] && it["container-title"][0]) || "",
+    ano: (partesData && partesData[0]) || null,
+    tipo: rotuloTipo(it.type),
+    idioma: "",
+    doi,
+    url: doi ? `https://doi.org/${doi}` : urlSegura(it.URL),
+    urlAberta: "",
+    aberto: false,
+    citacoes: it["is-referenced-by-count"] || 0,
+    resumo: limparJats(it.abstract),
+    volume: it.volume || "",
+    numero: it.issue || "",
+    paginas: it.page || "",
+  };
+}
+
+/* ---------- referência ABNT (rascunho) ---------- */
+
+const SUFIXOS_NOME = ["junior", "júnior", "filho", "neto", "sobrinho"];
+
+function formatarNomeAbnt(a) {
+  if (a.entidade) return a.nome.toUpperCase();
+  let sobrenome = a.sobrenome;
+  let dado = a.dado || "";
+  if (!sobrenome) {
+    const partes = a.nome.trim().split(/\s+/);
+    if (partes.length === 1) return partes[0].toUpperCase();
+    const ultimo = partes[partes.length - 1].toLowerCase();
+    const n = SUFIXOS_NOME.includes(ultimo) && partes.length > 2 ? 2 : 1;
+    sobrenome = partes.slice(-n).join(" ");
+    dado = partes.slice(0, -n).join(" ");
+  }
+  return sobrenome.toUpperCase() + (dado ? `, ${dado}` : "");
+}
+
+// Título todo em maiúsculas vira "Frase normal" (a ABNT não usa caixa alta no título).
+function ajustarCaixaTitulo(t) {
+  if (t.length > 3 && t === t.toUpperCase() && t !== t.toLowerCase()) {
+    const m = t.toLowerCase();
+    return m.charAt(0).toUpperCase() + m.slice(1);
+  }
+  return t;
+}
+
+function referenciaAbnt(r) {
+  const nomes = r.autores.map(formatarNomeAbnt);
+  const titulo = ajustarCaixaTitulo(r.titulo.trim()).replace(/[.\s]+$/, "");
+  let inicio;
+  if (nomes.length === 0) {
+    const [primeira, ...resto] = titulo.split(" ");
+    inicio = [primeira.toUpperCase(), ...resto].join(" ") + ".";
+  } else {
+    const autoria = nomes.length > 3 ? `${nomes[0]} et al.` : nomes.join("; ");
+    inicio = `${autoria.replace(/\.$/, "")}. ${titulo}.`;
+  }
+  const detalhes = [];
+  if (r.fonte) detalhes.push(r.fonte);
+  if (r.tipo === "Artigo") {
+    if (r.volume) detalhes.push(`v. ${r.volume}`);
+    if (r.numero) detalhes.push(`n. ${r.numero}`);
+    if (r.paginas) detalhes.push(`p. ${r.paginas}`);
+  }
+  if (r.ano) detalhes.push(String(r.ano));
+  const meio = detalhes.length ? ` ${detalhes.join(", ")}.` : "";
+  const fim = r.doi ? ` DOI: ${r.doi}.` : r.url ? ` Disponível em: ${r.url}.` : "";
+  return `${inicio}${meio}${fim}`;
+}
+
+/* ---------- outras bases (somente links, sem consulta automática) ---------- */
+
+function urlsOutrasBases(p) {
+  const q = enc(p.q);
+  let scholar = `https://scholar.google.com/scholar?hl=pt-BR&q=${q}`;
+  if (p.de) scholar += `&as_ylo=${p.de}`;
+  if (p.ate) scholar += `&as_yhi=${p.ate}`;
+  if (p.idioma) scholar += `&lr=lang_${p.idioma}`;
+  return [
+    { nome: "Google Acadêmico", url: scholar, nota: "aplica anos e idioma" },
+    { nome: "SciELO", url: `https://search.scielo.org/?lang=pt&q=${q}`, nota: "periódicos ibero-americanos" },
+    { nome: "BDTD", url: `https://bdtd.ibict.br/vufind/Search/Results?lookfor=${q}&type=AllFields`, nota: "teses e dissertações brasileiras" },
+    { nome: "PhilPapers", url: `https://philpapers.org/s/${q}`, nota: "filosofia" },
+    { nome: "JSTOR", url: `https://www.jstor.org/action/doBasicSearch?Query=${q}`, nota: "parte do acervo exige acesso institucional" },
+    { nome: "Semantic Scholar", url: `https://www.semanticscholar.org/search?q=${q}`, nota: "" },
+    { nome: "CORE", url: `https://core.ac.uk/search?q=${q}`, nota: "repositórios de acesso aberto" },
+    { nome: "Internet Archive Scholar", url: `https://scholar.archive.org/search?q=${q}`, nota: "" },
+  ];
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    POR_PAGINA, MAX_REGISTROS, PADRAO, TIPOS, AREAS, IDIOMAS, ORDENS,
+    normalizarParametros, lerDaUrl, paraUrl, urlOpenAlex, urlCrossref, filtrosIgnoradosCrossref,
+    reconstruirResumo, limparJats, normalizarOpenAlex, normalizarCrossref,
+    formatarNomeAbnt, ajustarCaixaTitulo, referenciaAbnt, urlsOutrasBases, urlSegura, limparDoi,
+  };
+}
+
+/* ======================= interface ======================= */
+
+if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("busca");
+    if (!form) return;
+    const $ = (id) => document.getElementById(id);
+    const nf = new Intl.NumberFormat("pt-BR");
+
+    const raiz = document.getElementById("buscador-config") || form;
+    const baseOpenAlex = raiz.dataset.openalex || "https://api.openalex.org";
+    const baseCrossref = raiz.dataset.crossref || "https://api.crossref.org";
+    const CHAVE_LS = "kp_openalex_key";
+
+    const campos = {
+      q: $("q"), fonte: $("fonte"), de: $("de"), ate: $("ate"), tipo: $("tipo"),
+      idioma: $("idioma"), area: $("area"), oa: $("oa"), br: $("br"), campo: $("campo"), ord: $("ord"),
+    };
+    const status = $("status");
+    const lista = $("resultados");
+    const paginacao = $("paginacao");
+    const nota = $("nota-fonte");
+    const outras = $("outras-bases");
+    const chaveInput = $("chave");
+
+    function preencher(select, itens) {
+      select.textContent = "";
+      for (const it of itens) {
+        const o = document.createElement("option");
+        o.value = it.valor;
+        o.textContent = it.rotulo;
+        select.appendChild(o);
+      }
+    }
+    preencher(campos.fonte, FONTES);
+    preencher(campos.tipo, TIPOS);
+    preencher(campos.idioma, IDIOMAS);
+    preencher(campos.area, AREAS);
+    preencher(campos.ord, ORDENS);
+    preencher(campos.campo, CAMPOS_BUSCA);
+
+    try { chaveInput.value = localStorage.getItem(CHAVE_LS) || ""; } catch (e) { /* sem armazenamento */ }
+    chaveInput.addEventListener("change", () => {
+      try {
+        const v = chaveInput.value.trim();
+        if (v) localStorage.setItem(CHAVE_LS, v); else localStorage.removeItem(CHAVE_LS);
+      } catch (e) { /* ignora */ }
+    });
+
+    function lerFormulario() {
+      return normalizarParametros({
+        q: campos.q.value, fonte: campos.fonte.value, de: campos.de.value, ate: campos.ate.value,
+        tipo: campos.tipo.value, idioma: campos.idioma.value, area: campos.area.value,
+        oa: campos.oa.checked, br: campos.br.checked, campo: campos.campo.value, ord: campos.ord.value, pag: 1,
+      });
+    }
+
+    function escreverFormulario(p) {
+      campos.q.value = p.q; campos.fonte.value = p.fonte; campos.de.value = p.de; campos.ate.value = p.ate;
+      campos.tipo.value = p.tipo; campos.idioma.value = p.idioma; campos.area.value = p.area;
+      campos.oa.checked = p.oa; campos.br.checked = p.br; campos.campo.value = p.campo; campos.ord.value = p.ord;
+      atualizarFonte();
+    }
+
+    function atualizarFonte() {
+      const cr = campos.fonte.value === "crossref";
+      for (const k of ["idioma", "area", "oa", "br", "campo"]) campos[k].disabled = cr;
+      nota.hidden = !cr;
+      nota.textContent = cr
+        ? "No Crossref não há filtro de idioma, área, acesso aberto nem instituição, e a busca é feita em todos os campos do registro. Use o OpenAlex para esses filtros."
+        : "";
+    }
+
+    function atualizarOutrasBases() {
+      const q = campos.q.value.trim();
+      outras.textContent = "";
+      if (!q) {
+        const li = document.createElement("li");
+        li.textContent = "Digite um termo de busca para gerar os links.";
+        outras.appendChild(li);
+        return;
+      }
+      for (const b of urlsOutrasBases(lerFormulario())) {
+        const li = document.createElement("li");
+        const a = document.createElement("a");
+        a.href = b.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = b.nome;
+        li.appendChild(a);
+        if (b.nota) li.appendChild(document.createTextNode(` — ${b.nota}`));
+        outras.appendChild(li);
+      }
+    }
+
+    function el(tag, classe, texto) {
+      const e = document.createElement(tag);
+      if (classe) e.className = classe;
+      if (texto !== undefined) e.textContent = texto;
+      return e;
+    }
+
+    function botaoCopiar(rotulo, obterTexto) {
+      const b = el("button", "botao botao-secundario botao-pequeno", rotulo);
+      b.type = "button";
+      b.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(obterTexto());
+          b.textContent = "Copiado!";
+        } catch (e) {
+          b.textContent = "Não foi possível copiar";
+        }
+        setTimeout(() => (b.textContent = rotulo), 1600);
+      });
+      return b;
+    }
+
+    function cartao(r) {
+      const li = el("li", "resultado cartao");
+      const h = el("h3");
+      if (r.url) {
+        const a = el("a", "", r.titulo);
+        a.href = r.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+        h.appendChild(a);
+      } else h.textContent = r.titulo;
+      li.appendChild(h);
+
+      const nomes = r.autores.slice(0, 6).map((a) => a.nome);
+      const autoria = nomes.join("; ") + (r.autores.length > 6 ? " et al." : "");
+      const meta = [autoria, r.fonte, r.ano].filter(Boolean).join(" · ");
+      if (meta) li.appendChild(el("p", "meta", meta));
+
+      const selos = el("p", "selos");
+      if (r.tipo) selos.appendChild(el("span", "selo", r.tipo));
+      if (r.idioma) selos.appendChild(el("span", "selo", r.idioma.toUpperCase()));
+      selos.appendChild(el("span", "selo", `${nf.format(r.citacoes)} citações`));
+      if (r.aberto) {
+        if (r.urlAberta) {
+          const a = el("a", "selo selo-aberto", "Acesso aberto");
+          a.href = r.urlAberta; a.target = "_blank"; a.rel = "noopener noreferrer";
+          selos.appendChild(a);
+        } else selos.appendChild(el("span", "selo selo-aberto", "Acesso aberto"));
+      }
+      li.appendChild(selos);
+
+      if (r.resumo) {
+        const d = el("details", "resumo");
+        const s = el("summary", "", "Resumo");
+        d.appendChild(s);
+        d.appendChild(el("p", "", r.resumo));
+        li.appendChild(d);
+      }
+
+      const acoes = el("div", "acoes");
+      acoes.appendChild(botaoCopiar("Copiar referência (ABNT, rascunho)", () => referenciaAbnt(r)));
+      if (r.doi) acoes.appendChild(botaoCopiar("Copiar DOI", () => r.doi));
+      li.appendChild(acoes);
+      return li;
+    }
+
+    function mostrarMensagem(texto, tipo) {
+      status.className = "mensagem" + (tipo ? " " + tipo : "");
+      status.textContent = texto;
+      status.hidden = !texto;
+    }
+
+    function desenharPaginacao(p, total) {
+      paginacao.textContent = "";
+      const maxPag = Math.min(Math.ceil(total / POR_PAGINA), Math.floor(MAX_REGISTROS / POR_PAGINA));
+      if (maxPag <= 1) return;
+      const ir = (pag) => { const novo = { ...p, pag }; history.pushState(null, "", paraUrl(novo)); executar(novo); window.scrollTo({ top: form.offsetTop, behavior: "smooth" }); };
+      const ant = el("button", "botao botao-secundario", "‹ Anterior");
+      ant.type = "button"; ant.disabled = p.pag <= 1; ant.addEventListener("click", () => ir(p.pag - 1));
+      const prox = el("button", "botao botao-secundario", "Próxima ›");
+      prox.type = "button"; prox.disabled = p.pag >= maxPag; prox.addEventListener("click", () => ir(p.pag + 1));
+      paginacao.append(ant, el("span", "pagina-atual", `Página ${nf.format(p.pag)} de ${nf.format(maxPag)}`), prox);
+    }
+
+    let controle = null;
+
+    async function executar(p) {
+      if (controle) controle.abort();
+      lista.textContent = "";
+      paginacao.textContent = "";
+      if (!p.q) { mostrarMensagem(""); return; }
+      controle = new AbortController();
+      const meu = controle;
+      mostrarMensagem("Buscando…", "");
+      const hoje = new Date().toISOString().slice(0, 10);
+      let chave = "";
+      try { chave = localStorage.getItem(CHAVE_LS) || ""; } catch (e) { /* ok */ }
+      try {
+        let total, resultados;
+        if (p.fonte === "crossref") {
+          const r = await fetch(urlCrossref(p, baseCrossref, hoje), { signal: meu.signal });
+          if (!r.ok) { const e = new Error("http"); e.status = r.status; throw e; }
+          const d = await r.json();
+          total = d.message["total-results"] || 0;
+          resultados = (d.message.items || []).map(normalizarCrossref);
+        } else {
+          const r = await fetch(urlOpenAlex(p, baseOpenAlex, chave, hoje), { signal: meu.signal });
+          if (!r.ok) { const e = new Error("http"); e.status = r.status; throw e; }
+          const d = await r.json();
+          total = (d.meta && d.meta.count) || 0;
+          resultados = (d.results || []).map(normalizarOpenAlex);
+        }
+        if (!resultados.length) {
+          mostrarMensagem("Nenhum resultado. Tente menos filtros, outros termos ou outra fonte.", "alerta");
+          return;
+        }
+        const nomeFonte = p.fonte === "crossref" ? "Crossref" : "OpenAlex";
+        const ini = (p.pag - 1) * POR_PAGINA + 1;
+        const ignorados = p.fonte === "crossref" ? filtrosIgnoradosCrossref(p) : [];
+        let msg = `${nf.format(total)} resultados no ${nomeFonte}. Mostrando ${nf.format(ini)}–${nf.format(ini + resultados.length - 1)}.`;
+        if (ignorados.length) msg += ` Filtros ignorados nesta fonte: ${ignorados.join(", ")}.`;
+        mostrarMensagem(msg, "");
+        for (const r of resultados) lista.appendChild(cartao(r));
+        desenharPaginacao(p, total);
+      } catch (e) {
+        if (e.name === "AbortError") return;
+        if (e.status === 429 || e.status === 403) {
+          mostrarMensagem(
+            "O limite gratuito diário do OpenAlex para a sua rede foi atingido. Você pode tentar o Crossref, voltar amanhã ou colocar uma chave gratuita do OpenAlex em \"Opções avançadas\".",
+            "erro"
+          );
+        } else if (e.status) {
+          mostrarMensagem(`A base respondeu com erro (código ${e.status}). Tente novamente em instantes ou use outra fonte.`, "erro");
+        } else {
+          mostrarMensagem("Não foi possível consultar a base agora. Verifique sua conexão ou tente outra fonte.", "erro");
+        }
+      }
+    }
+
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const p = lerFormulario();
+      history.pushState(null, "", paraUrl(p) || location.pathname);
+      executar(p);
+      atualizarOutrasBases();
+    });
+    campos.fonte.addEventListener("change", atualizarFonte);
+    form.addEventListener("input", atualizarOutrasBases);
+    window.addEventListener("popstate", () => {
+      const p = lerDaUrl(location.search);
+      escreverFormulario(p);
+      executar(p);
+      atualizarOutrasBases();
+    });
+
+    const inicial = lerDaUrl(location.search);
+    escreverFormulario(inicial);
+    atualizarOutrasBases();
+    executar(inicial);
+  });
+}

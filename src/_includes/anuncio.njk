@@ -1,0 +1,13 @@
+{# Bloco de anúncio. Só aparece quando site.adsenseClient estiver preenchido e
+   o parâmetro "slot" for informado. Uso: {% set slot = "1234567890" %}{% include "anuncio.njk" %}
+   Coloque no máximo 2 blocos por página e sempre depois de conteúdo útil. #}
+{% if site.adsenseClient and slot %}
+<aside class="anuncio" aria-label="Publicidade">
+  <ins class="adsbygoogle" style="display:block"
+       data-ad-client="{{ site.adsenseClient }}"
+       data-ad-slot="{{ slot }}"
+       data-ad-format="auto"
+       data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+</aside>
+{% endif %}

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Quando houver um sitemap, descomente:
+# Sitemap: https://kitpesquisador.com.br/sitemap.xml

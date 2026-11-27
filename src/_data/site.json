@@ -1,0 +1,14 @@
+{
+  "nome": "Kit Pesquisador",
+  "slogan": "Busca acadêmica e ferramentas gratuitas para pesquisadores",
+  "url": "https://kitpesquisador.com.br",
+  "idioma": "pt-BR",
+  "autor": "Seu Nome",
+  "email": "contato@kitpesquisador.com.br",
+  "adsenseClient": "",
+  "buscador": {
+    "openalexBase": "https://api.openalex.org",
+    "crossrefBase": "https://api.crossref.org"
+  },
+  "nota": "AdSense desativado por enquanto: com adsenseClient vazio nenhum anúncio nem script do Google é carregado. NÃO coloque aqui nenhuma chave pessoal do OpenAlex: este arquivo é público e a chave também serve de senha da sua conta no OpenAlex."
+}

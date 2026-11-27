@@ -1,0 +1,100 @@
+---
+layout: base.njk
+titulo: "Contador de palavras e caracteres para trabalhos acadêmicos"
+descricao: "Conte palavras, caracteres com e sem espaços, parágrafos e tempo de leitura. Confira se o resumo ou texto respeita o limite mínimo e máximo. Grátis e sem cadastro."
+scripts:
+  - contador.js
+---
+<nav class="trilha" aria-label="Você está em"><a href="/">Início</a> › <a href="/ferramentas/">Ferramentas</a> › Contador de palavras</nav>
+
+<h1>Contador de palavras e caracteres</h1>
+<p class="texto">Cole ou digite seu texto e veja a contagem na hora. Defina um limite (por exemplo, o de um resumo ou o de um campo de formulário) para saber quantas palavras faltam ou sobram.</p>
+
+<section class="ferramenta cartao" aria-label="Contador">
+  <label for="texto">Seu texto</label>
+  <textarea id="texto" placeholder="Cole ou digite o texto aqui…" spellcheck="true"></textarea>
+
+  <div class="resultados" role="status" aria-live="polite">
+    <div class="metrica"><strong id="r-palavras">0</strong><span>palavras</span></div>
+    <div class="metrica"><strong id="r-caracteres">0</strong><span>caracteres</span></div>
+    <div class="metrica"><strong id="r-sem-espacos">0</strong><span>sem espaços</span></div>
+    <div class="metrica"><strong id="r-paragrafos">0</strong><span>parágrafos</span></div>
+    <div class="metrica"><strong id="r-frases">0</strong><span>frases</span></div>
+    <div class="metrica"><strong id="r-leitura">0 min</strong><span>leitura</span></div>
+  </div>
+
+  <h2>Limite de tamanho (opcional)</h2>
+  <div class="linha-controles">
+    <div class="campo-largo">
+      <label for="preset">Modelo</label>
+      <select id="preset">
+        <option value="nenhum">Sem limite</option>
+        <option value="resumo-academico" data-unidade="palavras" data-min="150" data-max="500">Resumo de trabalho acadêmico (150 a 500 palavras)</option>
+        <option value="resumo-artigo" data-unidade="palavras" data-min="100" data-max="250">Resumo de artigo científico (100 a 250 palavras)</option>
+        <option value="personalizado">Personalizado</option>
+      </select>
+    </div>
+    <div>
+      <label for="limite-unidade">Contar em</label>
+      <select id="limite-unidade">
+        <option value="palavras">palavras</option>
+        <option value="caracteres">caracteres</option>
+      </select>
+    </div>
+    <div>
+      <label for="limite-min">Mínimo</label>
+      <input id="limite-min" type="number" min="0" inputmode="numeric" placeholder="—">
+    </div>
+    <div>
+      <label for="limite-max">Máximo</label>
+      <input id="limite-max" type="number" min="0" inputmode="numeric" placeholder="—">
+    </div>
+  </div>
+  <div id="barra" class="barra" hidden aria-hidden="true"><div></div></div>
+  <div id="limite-msg" class="mensagem" role="status" aria-live="polite" hidden></div>
+
+  <div class="linha-controles">
+    <button type="button" id="copiar" class="botao botao-secundario">Copiar contagem</button>
+    <button type="button" id="limpar" class="botao botao-secundario">Limpar texto</button>
+  </div>
+  <p class="aviso">Os limites dos modelos são valores de referência. Confira sempre a norma da sua instituição, o edital ou as instruções da revista, porque eles podem ser diferentes.</p>
+</section>
+
+<div class="texto">
+  <h2>Como a contagem é feita</h2>
+  <p>O contador considera <strong>palavra</strong> qualquer sequência de caracteres separada por espaços ou quebras de linha que contenha pelo menos uma letra ou um número. Por isso, "guarda-chuva" e "d'água" contam como uma palavra cada, e um travessão ou reticências soltas não entram na conta. Números, como "1789", são contados como palavras, o que costuma coincidir com o comportamento dos editores de texto.</p>
+  <p>Os <strong>caracteres</strong> são contados em duas versões: com espaços, que é a que a maioria dos formulários e editais usa, e sem espaços, que alguns programas e revistas exigem. Letras acentuadas contam como um caractere cada. Os <strong>parágrafos</strong> são os blocos separados por pelo menos uma linha em branco. As <strong>frases</strong> são estimadas pelos sinais de final de frase (ponto, interrogação, exclamação e reticências), então abreviaturas como "p." ou "et al." podem aumentar um pouco o número.</p>
+  <p>O <strong>tempo de leitura</strong> usa uma velocidade de referência de 200 palavras por minuto. É um valor médio de leitura silenciosa. Textos técnicos ou densos costumam levar mais tempo.</p>
+
+  <h2>Por que a contagem pode diferir de outro programa</h2>
+  <p>Cada programa define "palavra" de um jeito. O Word, o Google Docs e este contador podem apresentar diferenças pequenas, principalmente com hifens, barras, números e símbolos. Se um limite é estrito (um campo de inscrição, por exemplo), deixe uma margem de segurança e confira a contagem no ambiente onde o texto será enviado. Quando a instituição disser como conta (por exemplo, se inclui ou não título, referências e notas de rodapé), siga essa regra: este contador conta todo o texto colado.</p>
+
+  <h2>Dicas para escrever dentro do limite</h2>
+  <ul>
+    <li><strong>Resumos:</strong> a norma ABNT NBR 6028 orienta que o resumo seja um texto conciso, em parágrafo único, com objetivo, método, resultados e conclusões. Os intervalos de palavras variam conforme o tipo de trabalho, por isso o campo de limite permite alterar os valores.</li>
+    <li><strong>Corte primeiro o que repete:</strong> frases que reafirmam o que já foi dito costumam ocupar de 10% a 20% de um rascunho.</li>
+    <li><strong>Prefira verbos a substantivos:</strong> "analisamos" é mais curto e mais claro que "realizamos uma análise de".</li>
+    <li><strong>Reveja no fim:</strong> conte de novo depois da última revisão, porque pequenas edições mudam o total.</li>
+  </ul>
+
+  <h2>Privacidade</h2>
+  <p>A contagem acontece inteiramente no seu navegador. O texto não é enviado, salvo ou armazenado por este site. Ao fechar ou atualizar a página, ele desaparece, por isso copie seu texto para um arquivo antes de sair.</p>
+
+  <h2>Perguntas frequentes</h2>
+  <details>
+    <summary>Os espaços entram na contagem de caracteres?</summary>
+    <p>Mostramos as duas contagens: "caracteres" inclui os espaços e "sem espaços" os exclui. Use a que o seu edital ou formulário pedir.</p>
+  </details>
+  <details>
+    <summary>Os números e as referências bibliográficas contam como palavras?</summary>
+    <p>Sim, tudo o que for colado é contado. Se o limite do seu trabalho não incluir as referências, cole só o texto principal.</p>
+  </details>
+  <details>
+    <summary>Posso usar para textos em outros idiomas?</summary>
+    <p>Sim. A contagem funciona com letras de qualquer alfabeto. Em idiomas escritos sem espaços entre as palavras, como o chinês e o japonês, a contagem de palavras não é confiável, mas a de caracteres funciona.</p>
+  </details>
+  <details>
+    <summary>Meu texto fica guardado em algum lugar?</summary>
+    <p>Não. Ele permanece só no seu navegador e some quando a página é fechada ou atualizada.</p>
+  </details>
+</div>
