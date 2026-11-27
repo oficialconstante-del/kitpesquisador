@@ -378,12 +378,60 @@ function urlsOutrasBases(p) {
   ];
 }
 
+/* ---------- ponte para o gerador de referências ---------- */
+
+const CHAVE_REFS = "kp_refs";
+
+// Converte um resultado normalizado no objeto `ref` usado pelo gerador de referências.
+function resultadoParaRef(r) {
+  const tipoRotulo = r.tipo || "";
+  let tipo = "artigo";
+  if (tipoRotulo === "Livro") tipo = "livro";
+  else if (tipoRotulo === "Capítulo") tipo = "capitulo";
+  else if (tipoRotulo === "Tese/Dissertação") tipo = "tese";
+  const autores = r.autores || [];
+  const unicaEntidade = autores.length === 1 && autores[0].entidade;
+  const linhas = autores.map((a) => (a.sobrenome ? `${a.sobrenome}, ${a.dado || ""}`.replace(/,\s*$/, "") : a.nome));
+  const ref = {
+    tipo,
+    autores: linhas.join("\n"),
+    inst: !!unicaEntidade,
+    titulo: ajustarCaixaTitulo(String(r.titulo || "").trim()),
+    ano: r.ano ? String(r.ano) : "",
+    doi: r.doi || "",
+    url: r.doi ? "" : r.url || "",
+  };
+  const fonte = r.fonte || "";
+  if (tipo === "artigo") {
+    Object.assign(ref, { periodico: fonte, volume: r.volume || "", numero: r.numero || "", paginas: r.paginas || "" });
+  } else if (tipo === "livro") {
+    ref.editora = fonte;
+  } else if (tipo === "capitulo") {
+    Object.assign(ref, { obra: fonte, paginas: r.paginas || "" });
+  } else {
+    Object.assign(ref, { tese: "Tese|Doutorado", instituicao: fonte });
+  }
+  return ref;
+}
+
+const normalizaChave = (t) => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+// Acrescenta `ref` à lista, sem duplicar (mesmo DOI ou mesmo título e ano).
+function adicionarRef(lista, ref) {
+  const base = Array.isArray(lista) ? lista : [];
+  const igual = (x) =>
+    (ref.doi && x.doi && normalizaChave(x.doi) === normalizaChave(ref.doi)) ||
+    (normalizaChave(x.titulo) === normalizaChave(ref.titulo) && String(x.ano || "") === String(ref.ano || ""));
+  if (base.some(igual)) return { lista: base, novo: false };
+  return { lista: [...base, ref], novo: true };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     POR_PAGINA, MAX_REGISTROS, PADRAO, TIPOS, AREAS, IDIOMAS, ORDENS,
     normalizarParametros, lerDaUrl, paraUrl, urlOpenAlex, urlCrossref, filtrosIgnoradosCrossref,
     reconstruirResumo, limparJats, normalizarOpenAlex, normalizarCrossref,
-    formatarNomeAbnt, ajustarCaixaTitulo, referenciaAbnt, urlsOutrasBases, urlSegura, limparDoi,
+    formatarNomeAbnt, ajustarCaixaTitulo, referenciaAbnt, resultadoParaRef, adicionarRef, urlsOutrasBases, urlSegura, limparDoi,
   };
 }
 
@@ -486,6 +534,40 @@ if (typeof document !== "undefined") {
       return e;
     }
 
+    function botaoLista(r) {
+      const rotulo = "Adicionar à lista de referências";
+      const caixa = el("span", "acao-lista");
+      const b = el("button", "botao botao-secundario botao-pequeno", rotulo);
+      b.type = "button";
+      b.addEventListener("click", () => {
+        let atual = [];
+        try {
+          const lido = JSON.parse(localStorage.getItem(CHAVE_REFS) || "[]");
+          if (Array.isArray(lido)) atual = lido;
+        } catch (e) { /* lista ilegível: recomeça */ }
+        const { lista, novo } = adicionarRef(atual, resultadoParaRef(r));
+        try {
+          localStorage.setItem(CHAVE_REFS, JSON.stringify(lista));
+        } catch (e) {
+          b.textContent = "Não foi possível salvar";
+          setTimeout(() => (b.textContent = rotulo), 2000);
+          return;
+        }
+        b.textContent = novo ? "Adicionada!" : "Já está na lista";
+        if (!caixa.querySelector("a")) {
+          const a = el("a", "", `Ver lista (${lista.length})`);
+          a.href = "/ferramentas/gerador-de-referencias/";
+          caixa.appendChild(document.createTextNode(" "));
+          caixa.appendChild(a);
+        } else {
+          caixa.querySelector("a").textContent = `Ver lista (${lista.length})`;
+        }
+        setTimeout(() => (b.textContent = rotulo), 2000);
+      });
+      caixa.appendChild(b);
+      return caixa;
+    }
+
     function botaoCopiar(rotulo, obterTexto) {
       const b = el("button", "botao botao-secundario botao-pequeno", rotulo);
       b.type = "button";
@@ -540,6 +622,7 @@ if (typeof document !== "undefined") {
       const acoes = el("div", "acoes");
       acoes.appendChild(botaoCopiar("Copiar referência (ABNT, rascunho)", () => referenciaAbnt(r)));
       if (r.doi) acoes.appendChild(botaoCopiar("Copiar DOI", () => r.doi));
+      acoes.appendChild(botaoLista(r));
       li.appendChild(acoes);
       return li;
     }
