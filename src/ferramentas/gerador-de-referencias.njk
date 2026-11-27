@@ -1,0 +1,221 @@
+---
+layout: base.njk
+titulo: "Gerador de referências ABNT, APA, MLA e Chicago (com BibTeX, EndNote, RIS e RefWorks)"
+descricao: "Gere referências em ABNT NBR 6023:2025, APA, MLA e Chicago para livro, artigo, capítulo, site e tese. Copie com um clique e baixe em BibTeX, EndNote, Reference Manager e RefWorks. Grátis."
+scripts:
+  - referencias.js
+---
+<nav class="trilha" aria-label="Você está em"><a href="/">Início</a> › <a href="/ferramentas/">Ferramentas</a> › Gerador de referências</nav>
+
+<h1>Gerador de referências</h1>
+<p class="texto">Preencha os dados da obra e veja, ao mesmo tempo, a referência em quatro estilos. <strong>Clique na referência para copiá-la</strong> (com itálico e negrito, pronta para colar no Word ou no Google Docs). Monte uma lista com várias obras e baixe tudo em BibTeX, EndNote, Reference Manager ou RefWorks.</p>
+
+<div id="estado" class="mensagem" role="status" aria-live="polite" hidden></div>
+
+<form id="formulario" class="ferramenta cartao" aria-label="Dados da obra" autocomplete="off">
+  <h2>1. Dados da obra</h2>
+
+  <div class="linha-controles">
+    <div class="campo-largo">
+      <label for="f-doi-busca">Tem o DOI? Preencha automaticamente (artigos, capítulos e livros)</label>
+      <input id="f-doi-busca" type="text" placeholder="10.1590/…" inputmode="url">
+    </div>
+    <div>
+      <button type="button" id="buscar-doi" class="botao botao-secundario">Preencher pelo DOI</button>
+    </div>
+  </div>
+  <p class="aviso">Só o DOI é enviado ao Crossref (base pública de DOIs). Confira sempre os dados: os registros vêm de editoras e podem ter erros ou lacunas.</p>
+
+  <div class="linha-controles">
+    <div class="campo-largo">
+      <label for="f-tipo">Tipo de obra</label>
+      <select id="f-tipo" data-campo="tipo">
+        <option value="livro">Livro</option>
+        <option value="artigo">Artigo de periódico</option>
+        <option value="capitulo">Capítulo de livro</option>
+        <option value="site">Página de site</option>
+        <option value="tese">Tese, dissertação ou TCC</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grade-form">
+    <div class="f-largo" data-tipos="livro artigo capitulo site tese">
+      <label for="f-autores">Autor(es) — um por linha</label>
+      <textarea id="f-autores" class="curta" data-campo="autores" rows="3" placeholder="Silva, Maria da&#10;João Souza"></textarea>
+      <label class="rotulo-check"><input type="checkbox" id="f-inst" data-campo="inst"> O autor é uma instituição (ex.: Ministério da Saúde, IBGE)</label>
+      <label class="rotulo-check" data-tipos="livro"><input type="checkbox" data-campo="org"> Os nomes acima são organizadores da obra</label>
+    </div>
+
+    <div class="f-largo" data-tipos="livro artigo capitulo site tese">
+      <label for="f-titulo">Título <span class="obrigatorio">(obrigatório)</span></label>
+      <input id="f-titulo" type="text" data-campo="titulo" placeholder="Título da obra, do artigo, do capítulo ou da página">
+    </div>
+    <div class="f-largo" data-tipos="livro artigo site tese">
+      <label for="f-subtitulo">Subtítulo</label>
+      <input id="f-subtitulo" type="text" data-campo="subtitulo" placeholder="O que vem depois dos dois-pontos (opcional)">
+    </div>
+
+    <div data-tipos="artigo">
+      <label for="f-periodico">Periódico (revista)</label>
+      <input id="f-periodico" type="text" data-campo="periodico">
+    </div>
+    <div data-tipos="artigo">
+      <label for="f-volume">Volume</label>
+      <input id="f-volume" type="text" data-campo="volume" inputmode="numeric">
+    </div>
+    <div data-tipos="artigo">
+      <label for="f-numero">Número / fascículo</label>
+      <input id="f-numero" type="text" data-campo="numero">
+    </div>
+
+    <div class="f-largo" data-tipos="capitulo">
+      <label for="f-obra">Título do livro que contém o capítulo</label>
+      <input id="f-obra" type="text" data-campo="obra">
+    </div>
+    <div class="f-largo" data-tipos="capitulo">
+      <label for="f-organizadores">Organizador(es) do livro — um por linha</label>
+      <textarea id="f-organizadores" class="curta" data-campo="organizadores" rows="2" placeholder="Se for o mesmo autor do capítulo, deixe em branco"></textarea>
+    </div>
+
+    <div data-tipos="artigo capitulo">
+      <label for="f-paginas">Páginas</label>
+      <input id="f-paginas" type="text" data-campo="paginas" placeholder="11-30">
+    </div>
+
+    <div data-tipos="livro capitulo">
+      <label for="f-edicao">Edição</label>
+      <input id="f-edicao" type="text" data-campo="edicao" placeholder="2 (deixe vazio para 1ª edição)">
+    </div>
+    <div data-tipos="livro capitulo artigo site tese">
+      <label for="f-local">Local de publicação</label>
+      <input id="f-local" type="text" data-campo="local" placeholder="São Paulo">
+    </div>
+    <div data-tipos="livro capitulo">
+      <label for="f-editora">Editora</label>
+      <input id="f-editora" type="text" data-campo="editora">
+    </div>
+
+    <div data-tipos="site">
+      <label for="f-site">Nome do site</label>
+      <input id="f-site" type="text" data-campo="site" placeholder="Ex.: Biblioteca Nacional Digital">
+    </div>
+
+    <div data-tipos="tese">
+      <label for="f-tese">Tipo de trabalho</label>
+      <select id="f-tese" data-campo="tese">
+        <option value="Tese|Doutorado">Tese (doutorado)</option>
+        <option value="Dissertação|Mestrado">Dissertação (mestrado)</option>
+        <option value="Trabalho de conclusão de curso|Graduação">TCC (graduação)</option>
+        <option value="Monografia|Especialização">Monografia (especialização)</option>
+      </select>
+    </div>
+    <div data-tipos="tese">
+      <label for="f-curso">Curso ou programa</label>
+      <input id="f-curso" type="text" data-campo="curso" placeholder="História Social">
+    </div>
+    <div class="f-largo" data-tipos="tese">
+      <label for="f-instituicao">Instituição (faculdade, universidade)</label>
+      <input id="f-instituicao" type="text" data-campo="instituicao" placeholder="Faculdade de Filosofia, Letras e Ciências Humanas, Universidade de São Paulo">
+    </div>
+
+    <div data-tipos="livro capitulo artigo site tese">
+      <label for="f-ano">Ano</label>
+      <input id="f-ano" type="text" data-campo="ano" inputmode="numeric" maxlength="4" placeholder="2021">
+    </div>
+    <div data-tipos="artigo site">
+      <label for="f-mes">Mês (opcional)</label>
+      <select id="f-mes" data-campo="mes">
+        <option value="">—</option>
+        <option value="1">janeiro</option><option value="2">fevereiro</option><option value="3">março</option>
+        <option value="4">abril</option><option value="5">maio</option><option value="6">junho</option>
+        <option value="7">julho</option><option value="8">agosto</option><option value="9">setembro</option>
+        <option value="10">outubro</option><option value="11">novembro</option><option value="12">dezembro</option>
+      </select>
+    </div>
+    <div data-tipos="site">
+      <label for="f-dia">Dia (opcional)</label>
+      <input id="f-dia" type="text" data-campo="dia" inputmode="numeric" maxlength="2">
+    </div>
+
+    <div class="f-largo" data-tipos="livro artigo capitulo site tese">
+      <label for="f-doi">DOI</label>
+      <input id="f-doi" type="text" data-campo="doi" placeholder="10.1590/…">
+    </div>
+    <div class="f-largo" data-tipos="livro artigo capitulo site tese">
+      <label for="f-url">Endereço na internet (URL)</label>
+      <input id="f-url" type="text" data-campo="url" inputmode="url" placeholder="https://…">
+    </div>
+    <div data-tipos="livro artigo capitulo site tese">
+      <label for="f-acesso">Data de acesso (obras online)</label>
+      <input id="f-acesso" type="date" data-campo="acesso">
+    </div>
+  </div>
+
+  <p id="pendencias" class="aviso" role="status"></p>
+
+  <div class="linha-controles">
+    <button type="button" id="adicionar" class="botao" disabled>Adicionar à minha lista</button>
+    <button type="button" id="limpar-form" class="botao botao-secundario">Limpar formulário</button>
+  </div>
+</form>
+
+<section class="ferramenta" aria-label="Referência gerada">
+  <h2>2. Referência nos quatro estilos</h2>
+  <p id="dica-copiar" class="aviso">Clique na referência para copiá-la. O itálico e o negrito vão junto quando você cola em um editor de texto.</p>
+  <div id="estilos" class="grade-refs"></div>
+</section>
+
+<section class="ferramenta cartao" aria-label="Minha lista">
+  <h2>3. Minha lista de referências</h2>
+  <p id="lista-vazia" class="texto">Sua lista está vazia. Preencha uma obra e clique em “Adicionar à minha lista”. A lista fica salva só neste navegador e é mostrada em ordem alfabética.</p>
+  <div id="lista-acoes" hidden>
+    <div class="linha-controles">
+      <div class="campo-largo">
+        <label for="estilo-lista">Estilo da lista</label>
+        <select id="estilo-lista">
+          <option value="abnt">ABNT NBR 6023:2025</option>
+          <option value="apa">APA 7ª edição</option>
+          <option value="mla">MLA 9ª edição</option>
+          <option value="chicago">Chicago 17ª edição</option>
+        </select>
+      </div>
+      <button type="button" id="copiar-lista" class="botao">Copiar lista</button>
+      <button type="button" id="limpar-lista" class="botao botao-secundario">Apagar lista</button>
+    </div>
+  </div>
+  <ol id="lista" class="lista-refs"></ol>
+</section>
+
+<section class="ferramenta cartao" aria-label="Exportar">
+  <h2>4. Baixar para o seu gerenciador de referências</h2>
+  <p id="export-info" class="texto"></p>
+  <div class="linha-controles">
+    <button type="button" class="botao botao-secundario" data-exportar="bibtex" disabled>BibTeX (.bib)</button>
+    <button type="button" class="botao botao-secundario" data-exportar="endnote" disabled>EndNote (.enw)</button>
+    <button type="button" class="botao botao-secundario" data-exportar="refman" disabled>Reference Manager (.ris)</button>
+    <button type="button" class="botao botao-secundario" data-exportar="refworks" disabled>RefWorks (.txt)</button>
+  </div>
+</section>
+
+<div class="texto">
+  <h2>Como usar cada arquivo</h2>
+  <ul>
+    <li><strong>BibTeX (.bib):</strong> para LaTeX, Overleaf, JabRef e Zotero. Em LaTeX, use com o pacote <code>biblatex</code> (codificação UTF-8).</li>
+    <li><strong>EndNote (.enw):</strong> no EndNote, vá em Arquivo → Import → File e escolha o filtro “EndNote Import”.</li>
+    <li><strong>Reference Manager (.ris):</strong> o RIS é o formato nativo do Reference Manager. Zotero, Mendeley e EndNote também leem esse arquivo.</li>
+    <li><strong>RefWorks (.txt):</strong> arquivo no “RefWorks Tagged Format”, para importar em References → Import. Se preferir, o RefWorks também aceita o arquivo .ris.</li>
+  </ul>
+
+  <h2>Sobre as normas</h2>
+  <p><strong>ABNT:</strong> a norma em vigor para referências é a <strong>ABNT NBR 6023:2025</strong>, terceira edição, publicada em maio de 2025. Não existe uma “NBR 2026”; este gerador segue a edição de 2025. As citações no texto seguem a NBR 10520:2023, que esta ferramenta ainda não gera.</p>
+  <p><strong>APA, MLA e Chicago:</strong> as formas seguem a 7ª edição da APA, a 9ª do MLA e o sistema de notas e bibliografia da 17ª edição do Chicago, adaptados ao português (por exemplo, “org.”, “p.” e “organizado por”).</p>
+
+  <h2>Limites e cuidados</h2>
+  <ul>
+    <li><strong>Maiúsculas e minúsculas:</strong> o gerador mantém o título como você digitou, exceto quando está todo em maiúsculas. A APA pede letra maiúscula só na primeira palavra do título; ajuste isso no campo.</li>
+    <li><strong>Obras especiais:</strong> jornais, filmes, leis, normas, entrevistas e redes sociais ainda não têm formulário próprio. Para esses casos, consulte a norma ou a biblioteca da sua instituição.</li>
+    <li><strong>Revise antes de entregar.</strong> Orientadores e periódicos podem exigir variações; confira o resultado com o manual do seu curso ou da revista.</li>
+    <li><strong>Privacidade:</strong> o que você digita fica no seu navegador. A única consulta externa é a busca opcional por DOI, enviada ao Crossref.</li>
+  </ul>
+</div>
