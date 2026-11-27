@@ -13,6 +13,13 @@
   <meta property="og:url" content="{{ site.url }}{{ page.url }}">
   <meta property="og:locale" content="pt_BR">
   {% if semindexar %}<meta name="robots" content="noindex">{% endif %}
+  <script>
+    try {
+      var tema = localStorage.getItem("kp_tema");
+      if (!tema && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) tema = "escuro";
+      if (tema === "escuro") document.documentElement.setAttribute("data-tema", "escuro");
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="/css/estilo.css">
   {% if site.adsenseClient %}
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={{ site.adsenseClient }}" crossorigin="anonymous"></script>
@@ -25,6 +32,7 @@
     {{ content | safe }}
   </main>
   {% include "rodape.njk" %}
+  <script src="/js/tema.js" defer></script>
   {% if scripts %}
     {% for s in scripts %}<script src="/js/{{ s }}" defer></script>
     {% endfor %}
