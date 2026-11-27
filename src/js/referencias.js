@@ -609,7 +609,7 @@ function doiParaRef(m) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     formatar, abnt, apa, mla, chicago, pendencias, bibtex, ris, endnote, refworks, doiParaRef,
-    parseNome, iniciais, lerAutores, ajustarTitulo, normalizarDoi, entradaPorTitulo, txt, ESTILOS, EXPORTACOES, TIPOS
+    parseNome, iniciais, lerAutores, preparar, ajustarTitulo, normalizarDoi, entradaPorTitulo, txt, ESTILOS, EXPORTACOES, TIPOS
   };
 }
 
@@ -617,6 +617,7 @@ if (typeof module !== "undefined" && module.exports) {
 if (typeof document !== "undefined") {
   document.addEventListener("DOMContentLoaded", () => {
     const $ = (id) => document.getElementById(id);
+    if (!$("f-tipo")) return; // página sem o formulário do gerador (ex.: fichamentos)
     const CHAVE = "kp_refs";
     const campos = Array.from(document.querySelectorAll("[data-campo]"));
     let lista = [];
