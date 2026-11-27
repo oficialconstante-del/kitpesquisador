@@ -487,3 +487,10 @@ a.selo.selo-aberto:hover { background: var(--cor-selo-aberto-hover); color: var(
 .ficha-doc .premissas { list-style: none; padding-left: 0; }
 .ficha-doc dt { font-weight: 700; }
 .ficha-doc dd { margin: 0 0 var(--espaco-2) var(--espaco-4); }
+
+/* Buscador: escolha de fontes */
+.buscador fieldset.fontes { border: 0; padding: 0; margin: var(--espaco-3) 0 0; min-width: 0; }
+.buscador fieldset.fontes legend { font-family: var(--fonte-interface); font-weight: 600; font-size: 0.9rem; padding: 0; margin-bottom: var(--espaco-1); }
+.buscador fieldset.fontes .marcadores { margin-top: 0; }
+.dica-fonte { font-weight: 400; font-size: 0.85rem; color: var(--cor-texto-suave); }
+.selo-fonte { background: var(--cor-fundo-suave); border-style: dashed; }
