@@ -4,6 +4,9 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");
   eleventyConfig.addPassthroughCopy({ "src/static": "/" }); // robots.txt, favicon, CNAME, ads.txt
 
+  // Versão do build: vai como ?v= nos CSS e JS para o navegador não usar arquivos antigos do cache.
+  eleventyConfig.addGlobalData("versao", Date.now().toString(36));
+
   // Data atual (usada no rodapé e na política de privacidade)
   eleventyConfig.addFilter("ano", () => new Date().getFullYear());
 
