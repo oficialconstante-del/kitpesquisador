@@ -8,6 +8,9 @@
     "build": "eleventy",
     "test": "node tests/test-ferramentas.js && node tests/test-buscador.js"
   },
+  "dependencies": {
+    "sharp": "^0.35.5"
+  },
   "devDependencies": {
     "@11ty/eleventy": "^3.0.0"
   }
